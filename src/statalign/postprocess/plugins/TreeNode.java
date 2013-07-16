@@ -69,6 +69,7 @@ public class TreeNode {
      */
     public void addChild(TreeNode node) {
         children.add(node);
+        node.parent = this;
     }
 
     /**

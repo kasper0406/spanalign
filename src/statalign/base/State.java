@@ -35,11 +35,14 @@ public class State {
 	
 	/** Root node of the tree */
 	public int root;
-	
+
 	/** Tree representation: left descendant of each node (first nl are leaves), -1 for none */
-	public int[] left;
+	// public int[] left;
 	/** Tree representation: right descendant of each node (first nl are leaves), -1 for none */
-	public int[] right;
+	// public int[] right;
+
+    public int[][] children;
+
 	/** Tree representation: parent of each node (first nl are leaves), -1 for none */
 	public int[] parent;
 	
@@ -87,15 +90,17 @@ public class State {
 		this.nn = nn;
 		nl = (nn+1)/2;
 		
-		left = new int[nn];
-		right = new int[nn];
+		// left = new int[nn];
+		// right = new int[nn];
+        children = new int[nn][];
+
 		parent = new int[nn];
 		edgeLen = new double[nn];
 		
 		align = new int[nn][];
 		felsen = new double[nn][][];
 		seq = new String[nn];
-		name = new String[nl];
+		name = new String[nn];
 	}
 	
 	/**
@@ -179,16 +184,26 @@ public class State {
 	
 	/** Recursively prints newick representation of subtree into sb */
 	private void newick(int node, StringBuilder sb) {
-		if(node < nl) {		// leaf
-            String nameEncoded = NewickParser.getEncodedTaxaName(name[node]);
-			sb.append(nameEncoded);
-		} else {
+		//if(node < nl) {		// leaf
+        //    String nameEncoded = NewickParser.getEncodedTaxaName(name[node]);
+		//	sb.append(nameEncoded);
+		//} else {
+
+        if (children[node].length > 0) {
 			sb.append('(');
-			newick(left[node], sb);
-			sb.append(',');
-			newick(right[node], sb);
+
+            for (int i = 0; i < children[node].length; i++) {
+                newick(children[node][i], sb);
+                if (i + 1 != children[node].length)
+                    sb.append(",");
+            }
+
 			sb.append(')');
-		}
+        }
+
+        String nameEncoded = NewickParser.getEncodedTaxaName(name[node]);
+        sb.append(nameEncoded);
+		//}
 		if(node == root) {
 			sb.append(';');
 		} else {
@@ -222,21 +237,27 @@ public class State {
 		}
 		
 		String[] createAlign() {
-			int l = left[root], r = right[root], len = align[root].length, i;
-			
+			// int l = left[root], r = right[root], len = align[root].length, i;
+            // TODO: This is hacked...
+            // int l = children[root][0], r = children[root][1], len = align[root].length, i;
+            int len = align[root].length, i;
+
 			for(i = 0; i < len; i++) {
-				before(l, i);
-				before(r, i);
+                for (int c = 0; c < children[root].length; c++)
+                    before(children[root][c], i);
+
 				if(fullAlign) {
 					newCol();
 					column[root] = seq[root].charAt(i);
 				}
-				at(l, i);
-				at(r, i);
+
+                for (int c = 0; c < children[root].length; c++)
+                    at(children[root][c], i);
+
 				outCol();
 			}
-			before(l, i);
-			before(r, i);
+            for (int c = 0; c < children[root].length; c++)
+                before(children[root][c], i);
 			
 			String[] out = new String[rows.length];
 			for(i = 0; i < out.length; i++)
@@ -259,21 +280,24 @@ public class State {
 
 		private void before(int node, int pi) {
 			int al[] = align[node];
-			int i = pos[node], len = al.length, ali = 0, l = left[node], r = right[node];
-			boolean leaf = node < nl;
+            // TODO: HACKED!
+			// int i = pos[node], len = al.length, ali = 0, l = left[node], r = right[node];
+            // int i = pos[node], len = al.length, ali = 0, l = children[node][0], r = children[node][1];
+            int i = pos[node], len = al.length, ali = 0;
+			boolean leaf = children[node].length == 0;
 			
 			while(i < len && (ali=al[i]) < 0 && -ali-1 == pi) {
 				if(!leaf) {
-					before(l, i);
-					before(r, i);
+                    for (int c = 0; c < children[node].length; c++)
+                        before(children[node][c], i);
 				}
 				if(leaf || fullAlign) {
 					newCol();
 					column[node] = seq[node].charAt(i);
 				}
 				if(!leaf) {
-					at(l, i);
-					at(r, i);
+                    for (int c = 0; c < children[node].length; c++)
+                        at(children[node][c], i);
 				}
 				outCol();
 				i++;
@@ -281,8 +305,11 @@ public class State {
 			if(!leaf && (
 					(i < len && ali >= 0 && ali == pi) ||
 					(i == len && pi == align[parent[node]].length))) {
-				before(l, i);		// in descendants output insertions (only once!)
-				before(r, i);		// before next match and after last column
+				// before(l, i);		// in descendants output insertions (only once!)
+				// before(r, i);		// before next match and after last column
+
+                for (int c = 0; c < children[node].length; c++)
+                    before(children[node][c], i);
 			}
 			pos[node] = i;
 		}
@@ -290,7 +317,7 @@ public class State {
 		private void at(int node, int pi) {
 			int al[] = align[node];
 			int i = pos[node], len = al.length, ali = 0;
-			boolean leaf = node < nl;
+			boolean leaf = children[node].length == 0; // node < nl;
 			
 			if(i < len && (ali=al[i]) >= 0 && ali == pi) {
 				if(leaf || fullAlign) {
@@ -299,8 +326,13 @@ public class State {
 					column[node] = seq[node].charAt(i);
 				}
 				if(!leaf) {
-					at(left[node], i);
+                    for (int k = 0; k < children[node].length; k++)
+                        at(children[node][k], i);
+
+                    /*
+                    at(left[node], i);
 					at(right[node], i);
+					*/
 				}
 				i++;
 			}
@@ -315,14 +347,15 @@ public class State {
 
 	private void test() {
 		Arrays.fill(parent, -1);
-		Arrays.fill(left, -1);
-		Arrays.fill(right, -1);
+        Arrays.fill(children, new int[2]);
+        for (int i = 0; i < 2; i++)
+            Arrays.fill(children[i], -1);
 		parent[0] = 3;
 		parent[1] = 3;
 		parent[2] = 4;
 		parent[3] = 4;
-		left[3] = 0; right[3] = 1;
-		left[4] = 3; right[4] = 2;
+        children[3][0] = 0; children[3][1] = 1;
+        children[4][0] = 3; children[4][1] = 2;
 		align[0] = new int[] { -2, -2, 1 };
 		align[1] = new int[] { 0, 1 };
 		align[2] = new int[] { -2, 2 };

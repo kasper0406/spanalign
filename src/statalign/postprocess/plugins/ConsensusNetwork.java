@@ -111,10 +111,13 @@ public class ConsensusNetwork extends statalign.postprocess.Postprocess{
 	@Override
 	public void newSample(State state, int no, int total) {
 		if(show) {
+            // TODO: Comment in!
+            /*
 			CNetwork outputNetwork = mcmc.tree.network;
 			gui.network = outputNetwork;
 			// gui.redraw();
 			gui.repaint();
+			*/
 		}
 		//if (show) refreshGUI();
 	}

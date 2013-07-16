@@ -114,12 +114,15 @@ public class MainManager {
 		double heat = 1.0d / (1.0d + ((double) rank / noOfProcesses));;
 		
 		try {
-			Tree tree = new Tree(inputData.seqs.getSequences().toArray(new String[inputData.seqs.size()]),
+			ITree tree = new Tree(inputData.seqs.getSequences().toArray(new String[inputData.seqs.size()]),
 					inputData.seqs.getSeqnames().toArray(new String[inputData.seqs.size()]),
 					inputData.model, inputData.model.attachedScoringScheme);
+
+            /* TODO: Disregard MCMC for now
 			Mcmc mcmc = new Mcmc(tree, inputData.pars,
 					postProcMan, noOfProcesses, rank, heat);
 			mcmc.doMCMC();
+			*/
 
 			// Sets up a barrier.
 			MPI.COMM_WORLD.Barrier();
@@ -139,7 +142,8 @@ public class MainManager {
 						+ Double.toString(maxLogLikelihood[0]));
 			}
 
-			System.out.println(mcmc.getInfoString() + " Heat: " + mcmc.tree.heat);
+            // TODO: Comment in when doing MCMC...
+			// System.out.println(mcmc.getInfoString() + " Heat: " + mcmc.tree.heat);
 
 			finished(0, null);
 			System.out.println("Ready.");

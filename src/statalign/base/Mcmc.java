@@ -980,10 +980,17 @@ public class Mcmc extends Stoppable {
 		int nn = state.nn;
 		int tag = 0;
 
+        // TODO: Consider this!
+        for (int i = 0; i < nn; i++)
+            MPI.COMM_WORLD.Recv(state.children[i], 0, state.children[i].length, MPI.INT, peer, tag++);
+
+        /*
 		// left
 		MPI.COMM_WORLD.Recv(state.left, 0, nn, MPI.INT, peer, tag++);
 		// right
 		MPI.COMM_WORLD.Recv(state.right, 0, nn, MPI.INT, peer, tag++);
+		*/
+
 		// parent
 		MPI.COMM_WORLD.Recv(state.parent, 0, nn, MPI.INT, peer, tag++);
 		// edgeLen
@@ -1040,10 +1047,18 @@ public class Mcmc extends Stoppable {
 		int nn = state.nn;
 		int tag = 0;
 
+        // TODO: Consider this!
+        for (int i = 0; i < nn; i++)
+            MPI.COMM_WORLD.Send(state.children[i], 0, state.children[i].length, MPI.INT, 0, tag++);
+
+        /*
 		// left
 		MPI.COMM_WORLD.Send(state.left, 0, nn, MPI.INT, 0, tag++);
 		// right
 		MPI.COMM_WORLD.Send(state.right, 0, nn, MPI.INT, 0, tag++);
+		*/
+
+
 		// parent
 		MPI.COMM_WORLD.Send(state.parent, 0, nn, MPI.INT, 0, tag++);
 		// edgeLen

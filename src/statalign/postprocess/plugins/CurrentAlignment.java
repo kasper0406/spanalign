@@ -105,7 +105,8 @@ public class CurrentAlignment extends statalign.postprocess.Postprocess{
 			allAlignment[i] = seqNames[i]+'\t'+rows[i];
 		int ind = 0;
 		for(int i = 0; i < allAlignment.length; i++)
-			if(allAlignment[i].charAt(0) != ' ')
+            // TODO: Fix null check. Inserted for testing.
+			if(allAlignment[i] != null && allAlignment[i].charAt(0) != ' ')
 				leafAlignment[ind++] = allAlignment[i];
 		if(show) {
 			gui.alignment = allAlignment;

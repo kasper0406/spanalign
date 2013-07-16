@@ -1,8 +1,6 @@
 package statalign.base.thread;
 
-import statalign.base.MainManager;
-import statalign.base.Mcmc;
-import statalign.base.Tree;
+import statalign.base.*;
 import statalign.io.RawSequences;
 
 /**
@@ -59,15 +57,30 @@ public class MainThread extends StoppableThread {
 				}
 				nongapped[i] = builder.toString();
 			}
-			
-			Tree tree = new Tree(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]), 	
+
+            /*
+			ITree tree = new Tree(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
 					owner.inputData.model,
 					owner.inputData.model.attachedScoringScheme);
-			Mcmc mcmc = new Mcmc(tree, owner.inputData.pars, owner.postProcMan);
-			int errorCode = mcmc.doMCMC();
+					*/
+
+            ITree tree = new Spannoid(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
+                    owner.inputData.model, owner.inputData.model.attachedScoringScheme);
+
+			// Mcmc mcmc = new Mcmc(tree, owner.inputData.pars, owner.postProcMan);
+			// int errorCode = mcmc.doMCMC();
+            int errorCode = 0;
+
+            // TODO: Remove this
+            //       Hack to print structure before MCMC.
+            owner.postProcMan.beforeFirstSample();
+            // owner.postProcMan.newStep(new McmcStep());
+            owner.postProcMan.newSample(tree.getState(), 0, 0);
+            owner.postProcMan.afterLastSample();
+
 			owner.postProcMan.finalizeRun();
 			owner.finished(errorCode, null);
-			System.out.println(errorCode == 0 ? "Ready." : "Stopped.");
+			// System.out.println(errorCode == 0 ? "Ready." : "Stopped.");
 		} catch (StoppedException e) {
 			// stopped during initial alignment
 			owner.postProcMan.finalizeRun();

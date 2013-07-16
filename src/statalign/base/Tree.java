@@ -26,7 +26,7 @@ import statalign.postprocess.plugins.contree.CNetwork;
  * while it calls a function in the Tree class.
  * @author miklos, novak
  */
-public class Tree extends Stoppable {
+public class Tree extends Stoppable implements ITree {
 
     /** Characters on this tree undergo substitutions according to this model. */
     public SubstitutionModel substitutionModel;
@@ -557,6 +557,7 @@ public class Tree extends Stoppable {
         root.calcFelsRecursively();
         /////////////
 
+        System.out.println(String.format("Log likelihood: %f", getLogLike()));
     }
 
     public double getLogLike() {
@@ -599,8 +600,10 @@ public class Tree extends Stoppable {
 		state.root = lookup.get(root);
 		for(i = 0; i < nn; i++) {
 			v = vertex[i];
-			state.left[i] = v.left != null ? lookup.get(v.left) : -1;
-			state.right[i] = v.right != null ? lookup.get(v.right) : -1;
+
+            state.children[i] = new int[2];
+			state.children[i][0] = v.left != null ? lookup.get(v.left) : -1;
+			state.children[i][1] = v.right != null ? lookup.get(v.right) : -1;
 			state.parent[i] = v.parent != null ? lookup.get(v.parent) : -1;
 			state.edgeLen[i] = v.edgeLength;
 

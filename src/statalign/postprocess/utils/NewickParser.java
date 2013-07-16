@@ -184,6 +184,9 @@ public class NewickParser {
 						node = root;
 						root = nodeStack.pop();
 						root.children.set(root.children.size() - 1, node);
+
+                        // TODO: Consider if correct!
+                        node.parent = root;
 					}
 
 					switch (token.getType()) {
