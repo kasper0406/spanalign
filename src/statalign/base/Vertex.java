@@ -215,6 +215,10 @@ public class Vertex {
 
     }
 
+    boolean hasSequence() {
+        return (seq != null);
+    }
+
     Vertex brother() {
         return parent.left == this ? parent.right : parent.left;
     }
@@ -401,6 +405,7 @@ public class Vertex {
             AlignColumn l = left.first;
             AlignColumn r = right.first;
             double[] fel1, fel2;
+            int columnIndex = 0;
             for (p = first; p != last; p = p.next) {
                 fel1 = null;
                 fel2 = null;
@@ -417,6 +422,15 @@ public class Vertex {
                     r = r.next;
                 }
                 Utils.calcFelsen(p.seq, fel1, left.charTransMatrix, fel2, right.charTransMatrix);
+                // if sequence at this node is known, zero out incompatible likelihoods
+                if (hasSequence()) {
+                    for (int i = 0; i < p.seq.length; i++) {
+                        if (owner.substitutionModel.alphabet[i]!=seq.charAt(columnIndex)) {
+                            p.seq[i] = 0;
+                        }
+                    }
+                }
+                columnIndex++;
             }
         }
     }
