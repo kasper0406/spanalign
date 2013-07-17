@@ -3,6 +3,7 @@ package statalign.base;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.FieldPosition;
+import java.util.List;
 
 /**
  * This is a vertex of the tree.
@@ -45,10 +46,16 @@ public class Vertex {
      */
     public Vertex right;
 
+    public List<Vertex> children;
+
+
+
     int length;					// sequence length
     AlignColumn first;			// first alignment column of Vertex
     AlignColumn last;			// last, virtual alignment column of Vertex (always present)
     String seq;					// original sequence of this Vertex (given for leaves only)
+
+  private boolean isLabeled;           // flag determining if the node is nor not labeled.
 
     int winLength;                    // length of window
     AlignColumn winFirst;        // first alignment column of window
@@ -93,6 +100,14 @@ public class Vertex {
         this.edgeLength = edgeLength;
         this.name = new String(name);
         this.seq = origSeq;
+        // specify if the node is labeled or unlabeled
+        if (origSeq != null){
+            this.isLabeled = true;
+        }
+        else{
+            this.isLabeled = false;
+
+        }
         old = new Vertex();
         int size = owner.substitutionModel.e.length;
         first = new AlignColumn(this);
@@ -215,8 +230,8 @@ public class Vertex {
 
     }
 
-    boolean hasSequence() {
-        return (seq != null);
+    boolean isLabeled() {
+        return this.isLabeled;
     }
 
     Vertex brother() {
@@ -423,7 +438,7 @@ public class Vertex {
                 }
                 Utils.calcFelsen(p.seq, fel1, left.charTransMatrix, fel2, right.charTransMatrix);
                 // if sequence at this node is known, zero out incompatible likelihoods
-                if (hasSequence()) {
+                if (isLabeled()) {
                     for (int i = 0; i < p.seq.length; i++) {
                         if (owner.substitutionModel.alphabet[i]!=seq.charAt(columnIndex)) {
                             p.seq[i] = 0;
