@@ -9,13 +9,6 @@ package statalign.base;
  */
 public class FelsensteinNode  extends Hypernode{
 
-
-
-    public FelsensteinNode parent;
-    public FelsensteinNode left;
-    public FelsensteinNode right;
-    public FelsensteinNode old;
-
     double[][] charTransMatrix;            // precalculated character transition likelihoods (subst. model)
     double[][] charPropTransMatrix;        // precalculated character transition likelihoods for proposals (subst. model)
 
@@ -35,9 +28,6 @@ public class FelsensteinNode  extends Hypernode{
 
 
     }
-
-
-
 
 
     /**

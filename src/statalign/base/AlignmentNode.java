@@ -13,11 +13,6 @@ import java.text.FieldPosition;
  */
 public class AlignmentNode extends LikelihoodNode {
 
-    public AlignmentNode parent;
-    public AlignmentNode left;
-    public AlignmentNode right;
-    public AlignmentNode old;
-
     double[][] hmm3TransMatrix;            // precalculated state transition likelihoods for 3-seq HMM (indel model)
     double[][] hmm3RedTransMatrix;    // precalculated st. trans. likelihoods for 3-seq HMM, silent st. removed (indel model)
 
@@ -30,11 +25,7 @@ public class AlignmentNode extends LikelihoodNode {
 
 
 
-    AlignmentNode() {
-    }
-
-
-    AlignmentNode brother() {
+    Vertex brother() {
         return parent.left == this ? parent.right : parent.left;
     }
 
@@ -481,7 +472,7 @@ public class AlignmentNode extends LikelihoodNode {
         int parentLen = parent.winLength, childLen = winLength;
         final int START = owner.hmm2.getStart();
         final int END = owner.hmm2.getEnd();
-        AlignmentNode brother = brother();
+        Vertex brother = brother();
 
         double probMatrix[][][];                                                                    // DP matrix used for 2-seq HMM alignment
         probMatrix = new double[parentLen + 1][childLen + 1][END];        // don't reserve space for end state
@@ -907,7 +898,7 @@ public class AlignmentNode extends LikelihoodNode {
     }
 
     /**
-     * Restores old sequences in subtree of `this' recursively and up-alignments in non-selected AlignmentNodes.
+     * Restores old sequences in subtree of `this' recursively and up-alignments in non-selected Vertexs.
      * Assumes `this' is selected.
      */
     void doRecRestore() {
@@ -1084,7 +1075,7 @@ public class AlignmentNode extends LikelihoodNode {
      */
     int[] getAlign() {
         int[] align = new int[length];
-        AlignmentNode vp = parent;
+        Vertex vp = parent;
         if (vp != null) {
             AlignColumn c = first, p = vp.first;
             int cn = 0, pn = 0;

@@ -9,23 +9,20 @@ package statalign.base;
  */
 public class LikelihoodNode extends IndelNode {
 
-    public LikelihoodNode parent;
-    public LikelihoodNode left;
-    public LikelihoodNode right;
-
+    
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /** Calculates Felsenstein and indel likelihoods up to root, starting from `parent' */
     void calcAllUp() {
-        for (LikelihoodNode v = parent; v != null; v = v.parent) {
+        for (Vertex v = parent; v != null; v = v.parent) {
             v.calcFelsen();
             v.calcOrphan();
             v.calcIndelLogLike();
         }
     }
 
-    void compareLike(LikelihoodNode vert) {
+    void compareLike(Vertex vert) {
         if (left != null && right != null && vert.left != null && vert.right != null) {
             left.compareLike(vert.left);
             right.compareLike(vert.right);

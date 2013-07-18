@@ -10,11 +10,7 @@ package statalign.base;
 public class IndelNode extends FelsensteinNode {
 
 
-   public IndelNode parent;
-   public IndelNode left;
-   public IndelNode right;
-   public IndelNode old;
-
+  
    double[][] hmm2TransMatrix;            // precalculated state transition likelihoods for 2-seq HMM (indel model)
    double[][] hmm2PropTransMatrix;        // precalculated state transition likelihoods for 2-seq HMM used for proposals (indel model)
 
@@ -24,62 +20,6 @@ public class IndelNode extends FelsensteinNode {
      */
     public double indelLogLike;
 
-
-   IndelNode(){
-
-   }
-
-
-
-/*
-    IndelNode(Tree owner, double edgeLength) {
-        this.owner = owner;
-        this.edgeLength = edgeLength;
-        updateTransitionMatrix();
-        indelLogLike = 0.0;
-        old = new IndelNode();
-    }
-
-    IndelNode(Tree owner, double edgeLength, int[][] seq, String name, String origSeq) {
-        this.owner = owner;
-        this.edgeLength = edgeLength;
-        this.name = new String(name);
-        this.seq = origSeq;
-        // specify if the IndelNode is labeled or unlabeled
-        if (origSeq != null){
-            this.isLabeled = true;
-        }
-        else{
-            this.isLabeled = false;
-
-        }
-        old = new IndelNode();
-        int size = owner.substitutionModel.e.length;
-        first = new AlignColumn(this);
-        first.seq = new double[size];
-        for (int i = 0; i < first.seq.length; i++) {
-            first.seq[i] = seq[0][i];
-        }
-        first.prev = null;
-        AlignColumn prev = first;
-        for (int i = 1; i < seq.length; i++) {
-            AlignColumn actual = new AlignColumn(this);
-            prev.next = actual;
-            actual.prev = prev;
-            actual.seq = new double[size];
-            for (int j = 0; j < first.seq.length; j++) {
-                actual.seq[j] = seq[i][j];
-            }
-            prev = actual;
-        }
-        last = new AlignColumn(this);
-        last.prev = prev;
-        prev.next = last;
-        length = seq.length;
-        edgeChangeUpdate();
-        indelLogLike = 0.0;
-    }
-*/
 
 
 

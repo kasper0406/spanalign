@@ -22,7 +22,7 @@ public class Hypernode {
 
     Tree owner;
 
-    Hypernode old;
+    Vertex old;
 
     /**
      * The name of the sequence associated to the vertex.
@@ -30,20 +30,22 @@ public class Hypernode {
      */
     public String name;
 
+
+
     /** This reference points to the parent of the vertex */
-    public Hypernode parent;
+    public Vertex parent;
     /**
      * This reference points to the left child of the vertex. If the
      * vertex is a leaf, it is set to null.
      */
-    public Hypernode left;
+    public Vertex left;
     /**
      * This reference points to the right child of the vertex. If the
      * vertex is a leaf, it is set to null.
      */
-    public Hypernode right;
+    public Vertex right;
 
-    public List<Hypernode> children;
+    public List<Vertex> children;
 
 
 
@@ -70,77 +72,7 @@ public class Hypernode {
 
 
 
-    Hypernode(String descriptor, Hypernode parent) {
 
-        /* descriptor is a string describing the Hypernodes below this Hypernode */
-
-        //System.out.println(descriptor);
-
-        this.parent = parent;
-        owner = parent.owner;
-        old = new Hypernode();
-
-
-        if (descriptor.charAt(0) == '(') {
-            String leftDescriptor = "";
-            int counter = 0;
-            int j;
-            for (j = 1; counter != 0 || descriptor.charAt(j) != ','; j++) {
-                leftDescriptor += descriptor.charAt(j);
-                if (descriptor.charAt(j) == '(') {
-                    counter++;
-                }
-                if (descriptor.charAt(j) == ')') {
-                    counter--;
-                }
-            }
-            Hypernode leftChild = new Hypernode(leftDescriptor, this);
-            left = leftChild;
-
-            String rightDescriptor = "";
-            for (j += 1; counter != -1; j++) {
-                rightDescriptor += descriptor.charAt(j);
-                if (descriptor.charAt(j) == '(') {
-                    counter++;
-                }
-                if (descriptor.charAt(j) == ')') {
-                    counter--;
-                }
-            }
-            rightDescriptor = rightDescriptor.substring(0, rightDescriptor.length() - 1);
-            Hypernode rightChild = new Hypernode(rightDescriptor, this);
-            right = rightChild;
-            String tempStringlength = "";
-            for (j += 1; j < descriptor.length(); j++) {
-                tempStringlength += descriptor.charAt(j);
-            }
-            //System.out.println(tempStringlength);
-            if (tempStringlength.length() > 0) {
-                edgeLength = Math.max(Double.parseDouble(tempStringlength), 0.01);
-            } else {
-                edgeLength = 0.01;
-            }
-            //  edgeLength = 0.01;
-            //else we have the root Hypernode, which does not need an edgeLength
-        } else {
-            left = null;
-            right = null;
-            name = "";
-            int i = 0;
-            while (descriptor.charAt(i) != ':') {
-                name += descriptor.charAt(i);
-                i++;
-            }
-            String tempString = "";
-            for (i++; i < descriptor.length(); i++) {
-                tempString += descriptor.charAt(i);
-            }
-            //System.out.println(tempString);
-            edgeLength = Math.max(Double.parseDouble(tempString), 0.01);
-
-        }
-
-    }
 
     boolean isLabeled() {
         return this.isLabeled;
@@ -215,7 +147,7 @@ public class Hypernode {
     }
 
 
-    void parentNewChild(Hypernode child) {
+    void parentNewChild(Vertex child) {
         child.last.parent = parent.last;
         if (parent.left == this) {
             parent.left = child;

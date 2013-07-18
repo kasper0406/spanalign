@@ -10,14 +10,7 @@ package statalign.base;
 public class TopologyNode extends AlignmentNode{
 
 
-    public TopologyNode parent;
-    public TopologyNode left;
-    public TopologyNode right;
-    public TopologyNode old;
 
-    TopologyNode brother() {
-        return parent.left == this ? parent.right : parent.left;
-    }
 
 
     /**
@@ -26,7 +19,7 @@ public class TopologyNode extends AlignmentNode{
      * @return log-quotient of backproposal and proposal
      */
     double swapWithUncle1() {
-        TopologyNode uncle = parent.brother(), grandpa = parent.parent;
+        Vertex uncle = parent.brother(), grandpa = parent.parent;
         double ret = 0.0;
 
         fullWin();
@@ -70,7 +63,7 @@ public class TopologyNode extends AlignmentNode{
      * Assumes `this' has a non-null grandparent.
      */
     void swapBackUncle1() {
-        TopologyNode uncle = parent.brother(), grandpa = parent.parent;
+        Vertex uncle = parent.brother(), grandpa = parent.parent;
 
         parentNewChild(uncle);                    // order is important!
         uncle.parentNewChild(this);
@@ -87,9 +80,9 @@ public class TopologyNode extends AlignmentNode{
      * @return log-quotient of backproposal and proposal
      */
     double fastSwapWithUncle() {
-        TopologyNode uncle = parent.brother(), grandpa = parent.parent;
+        Vertex uncle = parent.brother(), grandpa = parent.parent;
         double ret = 0.0;
-        TopologyNode starter;
+        Vertex starter;
 
         //System.out.println("fast swap here"+grandpa.print());
 
@@ -286,7 +279,7 @@ public class TopologyNode extends AlignmentNode{
      * Assumes `this' has a non-null grandparent.
      */
     void fastSwapBackUncle() {
-        TopologyNode uncle = parent.brother(), grandpa = parent.parent;
+        Vertex uncle = parent.brother(), grandpa = parent.parent;
 
         fullWin();
         brother().fullWin();
@@ -453,13 +446,14 @@ public class TopologyNode extends AlignmentNode{
 
 
     }
+    // This function was modified so it casts the TopologyNodes into Vertex instances
     void parentNewChild(TopologyNode child) {
         child.last.parent = parent.last;
         if (parent.left == this) {
-            parent.left = child;
+            parent.left = (Vertex) child;
             parent.last.left = child.last;
         } else {
-            parent.right = child;
+            parent.right = (Vertex) child;
             parent.last.right = child.last;
         }
     }

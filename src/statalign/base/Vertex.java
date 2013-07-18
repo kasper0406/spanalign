@@ -16,11 +16,6 @@ import java.util.List;
  */
 public class Vertex extends TopologyNode{
 
-    public Vertex parent;
-    public Vertex left;
-    public Vertex right;
-    public Vertex old;
-
 
     Vertex(){
         
@@ -145,6 +140,9 @@ public class Vertex extends TopologyNode{
         }
 
     }
+
+
+
 
     Vertex brother() {
         return parent.left == this ? parent.right : parent.left;
