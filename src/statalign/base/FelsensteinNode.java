@@ -14,6 +14,16 @@ public class FelsensteinNode  extends Hypernode{
     public FelsensteinNode parent;
     public FelsensteinNode left;
     public FelsensteinNode right;
+    public FelsensteinNode old;
+
+    double[][] charTransMatrix;            // precalculated character transition likelihoods (subst. model)
+    double[][] charPropTransMatrix;        // precalculated character transition likelihoods for proposals (subst. model)
+
+    /**
+     * The log-sum of the Felsenstein's likelihoods of characters that are inserted into the
+     * sequence of this vertex.
+     */
+    public double orphanLogLike;        // log-sum of the likelihood of each orphan column in subtree (incl. this vertex)
 
 
 
@@ -45,6 +55,53 @@ public class FelsensteinNode  extends Hypernode{
         calcOrphan();
     }
 
+
+    void calcFelsRecursivelyWithCheck() {
+        if (left != null && right != null) {
+            // System.out.println("calling the left child");
+            left.calcFelsRecursivelyWithCheck();
+            //System.out.println("calling the right child");
+            right.calcFelsRecursivelyWithCheck();
+        }
+        calcFelsenWithCheck();
+        calcOrphanWithCheck();
+    }
+
+    /**
+     * Calculates the sum of orphan likelihoods in the (inclusive) subtree of `this'
+     * which is then stored in `this.orphanLogLike' (this implies that alignment to
+     * parent must exists at the time of calling)
+     * Saves previous orphan likelihood into `old' so it shouldn't be called twice in a row.
+     * (But does not save previous Felsensteins of `this' in AlignColumn's `seq'.)
+     */
+    void calcOrphanWithCheck() {
+        double oldorphanLogLike = orphanLogLike;
+
+        //orphan likelihoods
+        orphanLogLike = 0.0;
+
+        for (AlignColumn actual = first; actual != last; actual = actual.next) {
+            if (actual.parent == null || actual.orphan) {
+                orphanLogLike += Math.log(Utils.calcEmProb(actual.seq, owner.substitutionModel.e));
+            }
+        }
+
+        if (left != null && right != null)
+            orphanLogLike += left.orphanLogLike + right.orphanLogLike;
+
+        if (oldorphanLogLike != orphanLogLike) {
+            throw new Error("Problem with orphan loglike: fast: " + oldorphanLogLike + " slow: " + orphanLogLike);
+
+            //System.out.println("We are in vertex "+index+(name == null ? print(0) : "("+name+")"));
+            //System.out.print("Selected vertices: ");
+            //for(int i = 0; i < owner.vertex.length; i++){
+            //	if(owner.vertex[i].selected){
+            //		System.out.print(i+(owner.vertex[i].name == null ? owner.vertex[i].print(0) : "("+owner.vertex[i].name+")")+" ");
+            //	}
+            //}
+            //System.out.println();
+        }
+    }
 
 
 

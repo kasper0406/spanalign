@@ -16,6 +16,18 @@ public class AlignmentNode extends LikelihoodNode {
     public AlignmentNode parent;
     public AlignmentNode left;
     public AlignmentNode right;
+    public AlignmentNode old;
+
+    double[][] hmm3TransMatrix;            // precalculated state transition likelihoods for 3-seq HMM (indel model)
+    double[][] hmm3RedTransMatrix;    // precalculated st. trans. likelihoods for 3-seq HMM, silent st. removed (indel model)
+
+
+    int winLength;                    // length of window
+    AlignColumn winFirst;        // first alignment column of window
+    AlignColumn winLast;        // first alignment column past window end
+    boolean selected;                // shows if vertex is part of the selected subtree
+
+
 
 
     AlignmentNode() {

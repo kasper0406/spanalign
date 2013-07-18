@@ -54,30 +54,11 @@ public class Hypernode {
 
     public boolean isLabeled;           // flag determining if the Hypernode is nor not labeled.
 
-    int winLength;                    // length of window
-    AlignColumn winFirst;        // first alignment column of window
-    AlignColumn winLast;        // first alignment column past window end
-    boolean selected;                // shows if vertex is part of the selected subtree
 
     /** The length of the edge that connects this vertex with its parent. */
     public double edgeLength;                            // length of edge to parent vertex
-    double[][] charTransMatrix;            // precalculated character transition likelihoods (subst. model)
-    double[][] charPropTransMatrix;        // precalculated character transition likelihoods for proposals (subst. model)
-    double[][] hmm2TransMatrix;            // precalculated state transition likelihoods for 2-seq HMM (indel model)
-    double[][] hmm2PropTransMatrix;        // precalculated state transition likelihoods for 2-seq HMM used for proposals (indel model)
-    double[][] hmm3TransMatrix;            // precalculated state transition likelihoods for 3-seq HMM (indel model)
-    double[][] hmm3RedTransMatrix;    // precalculated st. trans. likelihoods for 3-seq HMM, silent st. removed (indel model)
 
-    /**
-     * The log-sum of the Felsenstein's likelihoods of characters that are inserted into the
-     * sequence of this vertex.
-     */
-    public double orphanLogLike;        // log-sum of the likelihood of each orphan column in subtree (incl. this vertex)
-    /**
-     * The log-sum of the cumulative insertion-deletion loglikelihoods up to this vertex (ie. summed over the
-     * subtree below this vertex.).
-     */
-    public double indelLogLike;
+
 
     public int leafCount;
 

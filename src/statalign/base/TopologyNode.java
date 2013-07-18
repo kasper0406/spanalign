@@ -13,6 +13,7 @@ public class TopologyNode extends AlignmentNode{
     public TopologyNode parent;
     public TopologyNode left;
     public TopologyNode right;
+    public TopologyNode old;
 
     TopologyNode brother() {
         return parent.left == this ? parent.right : parent.left;
