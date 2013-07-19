@@ -9,26 +9,78 @@ import statalign.model.subst.SubstitutionModel;
 import statalign.model.subst.plugins.Kimura3;
 import statalign.postprocess.plugins.TreeNode;
 import statalign.postprocess.utils.NewickParser;
+import sun.misc.IOUtils;
 
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.util.*;
 
 public class Spannoid extends Stoppable implements ITree {
+    private int n;
     private Set<Tree> components = new HashSet<Tree>();
 
-    private Map<Vertex, Integer> labeledVertexIds = new HashMap<Vertex, Integer>();
-
-    private int n;
+    private final String BONPHY_PATH = "/Users/kasper0406/Desktop/bonphy/bonphy.py";
 
     /*
      * Description...
      */
     private Map<Integer, Set<Vertex>> componentConnections = new HashMap<Integer, Set<Vertex>>();
+    private Map<Vertex, Integer> labeledVertexIds = new HashMap<Vertex, Integer>();
 
     public Spannoid(String[] sequences, String[] names,
                     SubstitutionModel model, SubstitutionScore ss)
-            throws StoppedException
-    {
-        throw new RuntimeException("Not yet implemented.");
+            throws StoppedException, IOException, InterruptedException {
+        n = sequences.length;
+        for (int i = 0; i < n; i++)
+            componentConnections.put(i, new HashSet<Vertex>());
+
+        int[][][] convertedSequences = convertSequences(sequences, model, ss);
+        String njTree = NJTree.getNJTree(convertedSequences, names, ss);
+
+        Map<String, Integer> nameMap = new HashMap<String, Integer>();
+        for (int i = 0; i < names.length; i++)
+            nameMap.put(names[i], i);
+
+        Process bonphy = Runtime.getRuntime().exec(BONPHY_PATH + " -k3");
+        OutputStreamWriter output = new OutputStreamWriter(bonphy.getOutputStream());
+        output.write(njTree);
+        output.close();
+
+        bonphy.waitFor();
+        Scanner scanner = new Scanner(bonphy.getInputStream()).useDelimiter("\\n");
+        scanner.next(); // Skip first line
+        while (scanner.hasNext()) {
+            String newickComponent = scanner.next();
+            NewickParser parser = new NewickParser(newickComponent);
+            TreeNode root = parser.parse();
+            root = shrinkTree(root);
+            createComponents(root, model, nameMap, convertedSequences, sequences);
+        }
+        scanner.close();
+    }
+
+    /**
+     * Removes all Steiner nodes of degree 2 from the tree.
+     */
+    private TreeNode shrinkTree(TreeNode node) {
+        if (node.children.size() == 2) {
+            if (node.name != null && !node.name.isEmpty())
+                throw new RuntimeException("Invalid format of component!");
+
+            TreeNode left = shrinkTree(node.children.get(0));
+            TreeNode right = shrinkTree(node.children.get(1));
+            left.parent = null;
+            left.addChild(right);
+            right.edgeLength = left.edgeLength + right.edgeLength;
+            left.edgeLength = node.edgeLength;
+            return left;
+        }
+        for (int i = 0; i < node.children.size(); i++)
+            node.children.set(i, shrinkTree(node.children.get(i)));
+
+        return node;
     }
 
     /**
@@ -44,7 +96,14 @@ public class Spannoid extends Stoppable implements ITree {
     public Spannoid(String newick, String[] sequences, Map<String, Integer> nameMap,
                     SubstitutionModel model, SubstitutionScore ss) throws StoppedException
     {
+        constructFromNewick(newick, sequences, nameMap, model, ss);
+    }
+
+    private void constructFromNewick(String newick, String[] sequences, Map<String, Integer> nameMap,
+                                     SubstitutionModel model, SubstitutionScore ss) {
         n = sequences.length;
+        for (int i = 0; i < n; i++)
+            componentConnections.put(i, new HashSet<Vertex>());
 
         NewickParser parser = new NewickParser(newick);
         TreeNode root = parser.parse();
@@ -55,9 +114,7 @@ public class Spannoid extends Stoppable implements ITree {
 
     private void createComponents(TreeNode node, SubstitutionModel model,
                                   Map<String, Integer> nameMap, int[][][] sequences, String[] originalSequences) {
-        // TODO: Re-root tree at a leaf automatically
-        if (node.name == null)
-            throw new RuntimeException("The tree should be rooted at a leaf!");
+        node = node.rootAtLeaf();
 
         Queue<TreeNode> labeledNodesToVisit = new LinkedList<TreeNode>();
         labeledNodesToVisit.add(node);
@@ -100,10 +157,13 @@ public class Spannoid extends Stoppable implements ITree {
         // Add the new vertices
         Vertex firstLeaf = new Vertex(tree, next.edgeLength / 2, sequences[nameMap.get(startLeaf.name)],
                 startLeaf.name, originalSequences[nameMap.get(startLeaf.name)]);
-        labeledVertexIds.put(firstLeaf, nameMap.get(nameMap.get(startLeaf.name)));
+        //Vertex firstLeaf = new Vertex(tree, next.edgeLength, sequences[nameMap.get(startLeaf.name)],
+        //        startLeaf.name, originalSequences[nameMap.get(startLeaf.name)]);
+        labeledVertexIds.put(firstLeaf, nameMap.get(startLeaf.name));
+        componentConnections.get(nameMap.get(startLeaf.name)).add(firstLeaf);
         leafVertices.add(firstLeaf);
-        firstLeaf.parent = rootVertex;
         addChildToVertex(rootVertex, firstLeaf);
+        firstLeaf.parent = rootVertex;
         treeNodeToVertex.put(startLeaf, firstLeaf);
         firstLeaf.selected = true;
 
@@ -115,9 +175,12 @@ public class Spannoid extends Stoppable implements ITree {
             TreeNode current = queue.poll();
 
             double edgeLength = current.edgeLength;
+
             // Special case for fake root vertex. Edge length should be halved
-            if (current == next)
-                edgeLength /= 2.;
+            if (current == next) {
+                edgeLength /= 2;
+                // edgeLength = 0;
+            }
 
             Vertex newVertex;
             if (current.name == null) {
@@ -134,9 +197,11 @@ public class Spannoid extends Stoppable implements ITree {
                         current.name, originalSequences[nameMap.get(current.name)]);
                 leafVertices.add(newVertex);
                 labeledVertexIds.put(newVertex, nameMap.get(current.name));
+                componentConnections.get(nameMap.get(current.name)).add(newVertex);
 
                 labeledNodes.add(current);
             }
+
             newVertex.name = current.name;
             newVertex.selected = true;
 
@@ -208,12 +273,16 @@ public class Spannoid extends Stoppable implements ITree {
         vertex.first = fake;
         vertex.last = fake;
         vertex.length = 0;
-        fake.left = vertex.left.last;
-        fake.right = vertex.right.last;
-        vertex.left.last.parent = fake;
-        vertex.left.last.orphan = false;
-        vertex.right.last.parent = fake;
-        vertex.right.last.orphan = false;
+        if (vertex.right != null) {
+            fake.right = vertex.right.last;
+            vertex.right.last.parent = fake;
+            vertex.right.last.orphan = false;
+        }
+        if (vertex.left != null) {
+            fake.left = vertex.left.last;
+            vertex.left.last.parent = fake;
+            vertex.left.last.orphan = false;
+        }
     }
 
     // TODO: Is it necessary to pass along a substitution score?
@@ -258,15 +327,43 @@ public class Spannoid extends Stoppable implements ITree {
         return seq;
     }
 
+    private double probOfSequence(Vertex vertex) {
+        double r = vertex.owner.hmm2.params[0];
+        double lambda = vertex.owner.hmm2.params[1];
+        double mu = vertex.owner.hmm2.params[2];
+        String sequence = vertex.sequence();
+        final int n = sequence.length();
+
+        double prob = 0;
+        if (n == 0)
+            prob = Math.log(1 - lambda / mu);
+        else
+            prob = Math.log(1 - lambda / mu) + Math.log(lambda / mu)
+                + Math.log(1 - r)
+                + (n - 1) * (Math.log((lambda / mu) * (1 - r) + r));
+
+        // TODO: Consider generalizing this!
+        prob += n * Math.log((double)1 / 4);
+
+        return prob;
+    }
+
     public double getLogLike() {
         double logLike = 0;
         for (Tree component : components)
             logLike += component.getLogLike();
+
+        for (Set<Vertex> connections : componentConnections.values()) {
+            Vertex vertex = connections.iterator().next();
+            logLike -= probOfSequence(vertex) * (connections.size() - 1);
+        }
+
         return logLike;
     }
 
     public State getState() {
         Tree firstComponent = components.iterator().next();
+        final Vertex rootVertex = firstComponent.vertex[0];
 
         int nodes = countNodes() - components.size() + 1;
         State state = new State(nodes);
@@ -277,30 +374,33 @@ public class Spannoid extends Stoppable implements ITree {
 
         Map<Vertex, Integer> lookup = new HashMap<Vertex, Integer>();
 
-        // int steinerIndex = n;
-        int leafCounter = 0;
-        int internalCounter = n - components.size() + 1;
+        int labeledCounter = 0;
+        int unlabeledCounter = n;
 
         Queue<Vertex> queue = new LinkedList<Vertex>();
-        queue.add(firstComponent.vertex[0]); // Add node to start BFS traversal
+        queue.add(rootVertex); // Add node to start BFS traversal
 
         while (!queue.isEmpty()) {
             Vertex current = queue.poll();
 
             boolean visitedBefore = lookup.containsKey(current); // This happens when searching connected components
             if (!visitedBefore) {
-                boolean isInternal = !labeledVertexIds.containsKey(current)
-                        || componentConnections.get(labeledVertexIds.get(current)).size() > 1;
-                if (isInternal)
-                    lookup.put(current, internalCounter++);
+                boolean isLabeled = labeledVertexIds.containsKey(current);
+                if (isLabeled)
+                    lookup.put(current, labeledCounter++);
                 else
-                    lookup.put(current, leafCounter++);
+                    lookup.put(current, unlabeledCounter++);
             }
 
             if (current.parent != null) {
                 if (lookup.containsKey(current.parent)) {
                     state.parent[lookup.get(current)] = lookup.get(current.parent);
                     children.get(lookup.get(current.parent)).add(lookup.get(current));
+
+                    if (state.align[lookup.get(current)] != null)
+                        throw new RuntimeException("Alignment set twice!");
+                    state.align[lookup.get(current)] = current.getAlign();
+                    state.edgeLen[lookup.get(current)] = current.edgeLength;
                 } else
                     queue.add(current.parent);
             }
@@ -308,6 +408,11 @@ public class Spannoid extends Stoppable implements ITree {
                 if (lookup.containsKey(current.left)) {
                     state.parent[lookup.get(current)] = lookup.get(current.left);
                     children.get(lookup.get(current.left)).add(lookup.get(current));
+
+                    if (state.align[lookup.get(current)] != null)
+                        throw new RuntimeException("Alignment set twice!");
+                    state.align[lookup.get(current)] = reverseAlign(current.left.getAlign());
+                    state.edgeLen[lookup.get(current)] = current.left.edgeLength;
                 } else
                     queue.add(current.left);
             }
@@ -315,6 +420,11 @@ public class Spannoid extends Stoppable implements ITree {
                 if (lookup.containsKey(current.right)) {
                     state.parent[lookup.get(current)] = lookup.get(current.right);
                     children.get(lookup.get(current.right)).add(lookup.get(current));
+
+                    if (state.align[lookup.get(current)] != null)
+                        throw new RuntimeException("Alignment set twice!");
+                    state.align[lookup.get(current)] = reverseAlign(current.right.getAlign());
+                    state.edgeLen[lookup.get(current)] = current.right.edgeLength;
                 } else
                     queue.add(current.right);
             }
@@ -332,10 +442,15 @@ public class Spannoid extends Stoppable implements ITree {
 
             state.name[lookup.get(current)] = (current.name == null) ? "" : current.name;
             state.seq[lookup.get(current)] = current.sequence();
+            state.felsen[lookup.get(current)] = current.getFelsen();
         }
 
-        state.parent[lookup.get(firstComponent.vertex[0])] = -1;
-        state.root = lookup.get(firstComponent.vertex[0]);
+        state.parent[lookup.get(rootVertex)] = -1;
+        state.root = lookup.get(rootVertex);
+
+        // Set alignment for root
+        state.align[state.root] = new int[rootVertex.length];
+        Arrays.fill(state.align[state.root], 0);
 
         for (int i = 0; i < nodes; i++) {
             int size = children.get(i).size();
@@ -345,22 +460,48 @@ public class Spannoid extends Stoppable implements ITree {
                 state.children[i][j++] = child;
         }
 
-        // TODO: Alignments should be merged!
-        //       For now just make dummy alignment.
-        for (int i = 0; i < nodes; i++) {
-            int parentLength = (state.parent[i] != -1) ? state.seq[state.parent[i]].length() // Find parent sequence length
-                                                       : state.seq[i].length(); // We are the root
-            state.align[i] = new int[parentLength];
-            for (int j = 0; j < parentLength; j++)
-                state.align[i][j] = j;
-        }
-
-        // TODO: Fix this!
         state.indelParams = firstComponent.hmm2.params.clone();
         state.substParams = firstComponent.substitutionModel.params.clone();
         state.logLike = getLogLike();
 
         return state;
+    }
+
+    /**
+     * Given two nodes parent and child, and given the alignment of child relative
+     * to parent as described in Vertex.getAlign(), this method returns the
+     * alignment of parent relative to child.
+     * @param toParent Alignment of child relative to parent.
+     * @return Alignment of parent relative to child.
+     */
+    private int[] reverseAlign(int[] toParent) {
+        // Find the length of the parent sequence
+        int length;
+        int lastEntry = toParent[toParent.length - 1];
+        if (lastEntry < 0)
+            length = -lastEntry;
+        else
+            length = lastEntry + 1;
+
+        int[] toChild = new int[length];
+        int parentPos = 0;
+        for (int childPos = 0; childPos < length; childPos++) {
+            if (toParent[parentPos] == childPos) {
+                // Match
+                toChild[childPos] = parentPos++;
+            } else if (toParent[parentPos] < 0) {
+                // Insertion
+
+                // TODO: Consider if this is always okay!
+                childPos--;
+                parentPos++;
+            } else {
+                // Deletion
+                toChild[childPos] = -(parentPos + 1);
+            }
+        }
+
+        return toChild;
     }
 
     private int countNodes() {
@@ -371,6 +512,19 @@ public class Spannoid extends Stoppable implements ITree {
     }
 
     public static void main(String[] args) throws Exception {
+        String[] seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AGACA", "TTGACC", "GTAC" };
+        String[] names = new String[] { "A", "B", "C", "D", "E", "F" };
+
+        // String[] seqs = new String[] { "AAGT", "GTAC" };
+        // String[] names = new String[] { "A", "B" };
+
+        SubstitutionModel model = new Kimura3();
+        SubstitutionScore ss = model.attachedScoringScheme;
+
+        Spannoid spannoid = new Spannoid(seqs, names, model, ss);
+        System.out.println("Log-like of spannoid: " + spannoid.getLogLike());
+
+        /*
         // String tree = "((B:0.5,C:0.5):0.5)A;";
         // String tree = "((A:0.5,B:0.2):1,(D:1,E:0.2):1)C;";
         String tree = "((D:0.1,(F:0.1,(E:0.2,C:0.05):0.2)B:0.1):0.2)A;";
@@ -392,5 +546,18 @@ public class Spannoid extends Stoppable implements ITree {
             for (String seq : alignment)
                 System.out.println(seq);
         }
+
+        System.out.println();
+        System.out.println("Combined alignment:");
+        State state = spannoid.getState();
+        String[] alignment = state.getLeafAlign();
+        // String[] alignment = state.getFullAlign();
+        int i = 0;
+        for (String seq : alignment) {
+            String name = (state.name[i].isEmpty()) ? "-" : state.name[i];
+            System.out.println(String.format("%s:\t%s", name, seq));
+            i++;
+        }
+        */
     }
 }

@@ -98,7 +98,7 @@ public class PPFold extends statalign.postprocess.Postprocess {
 	PPFoldGUI gui;
 	// private boolean sampling = true;
 
-	CurrentAlignment curAlig;
+	// CurrentAlignment curAlig;
 	MpdAlignment mpdAlignment;
 
 	ColumnNetwork network;
@@ -194,7 +194,7 @@ public class PPFold extends statalign.postprocess.Postprocess {
 
 	@Override
 	public void refToDependences(Postprocess[] plugins) {
-		curAlig = (CurrentAlignment) plugins[0];
+		// curAlig = (CurrentAlignment) plugins[0];
 		mpdAlignment = (MpdAlignment) plugins[1];
 	}
 
@@ -557,8 +557,13 @@ public class PPFold extends statalign.postprocess.Postprocess {
 
 	@Override	
 	public void newSample(State state, int no, int total) {
+        String[] leafAlignment = new String[state.nl];
+        String[] rows = state.getLeafAlign();
+        for (int i = 0; i < rows.length; i++)
+            leafAlignment[i] = state.name[i] + '\t' + rows[i];
+
 		for (int i = 0; i < t.length; i++) {
-			t[i] = curAlig.leafAlignment[i].split("\t");
+			t[i] = leafAlignment[i].split("\t");
 		}
 		Arrays.sort(t, compStringArr);	
 		

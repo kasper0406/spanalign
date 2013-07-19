@@ -413,69 +413,69 @@ public class Tree extends Stoppable implements ITree {
         //// Neighbor Joining algorithm based on the distances calculated above
         // initialization
         vertex = new Vertex[2 * seq.length - 1];
-//        for (int i = 0; i < vertex.length; i++) {
+//                  for (int i = 0; i < vertex.length; i++) {
 //            vertex[i] = new Vertex();
 //        }
-        double[] sumDist = new double[dist.length];
-        for (int i = 0; i < dist.length; i++) {
-            sumDist[i] = 0;
-            for (int j = 0; j < dist.length; j++) {
-                sumDist[i] += dist[i][j];
-            }
-        }
-        int[] where = new int[dist.length];
-        for (int i = 0; i < where.length; i++) {
-            where[i] = i;
-        }
-        // the first n vertices will be the leaves
-        for (int i = 0; i < seq.length; i++) {
-            vertex[i] = new Vertex(this, 0.0, seq[i], names[i], sequences[i]);
-        }
-        // NJ main recursion
-        int vnum = seq.length;
-        Vertex newVert;
-        for (int remN = dist.length; remN > 1; remN--) {
-            stoppable();
-            double minVal = BIGNUM;
-            double val = 0.0;
-            int i = -1;
-            int j = -1;
-            for (int k = 1; k < dist.length; k++) {
-                for (int l = 0; l < k; l++) {
-                    if (where[k] > -1 && where[l] > -1 && (val = (remN - 2) * dist[k][l] - sumDist[k] - sumDist[l]) < minVal) {
-                        i = k;
-                        j = l;
-                        minVal = val;
+                double[] sumDist = new double[dist.length];
+                for (int i = 0; i < dist.length; i++) {
+                    sumDist[i] = 0;
+                    for (int j = 0; j < dist.length; j++) {
+                        sumDist[i] += dist[i][j];
                     }
                 }
-            }
-            newVert = new Vertex(this, 0.0);    /* new vertex */
-            vertex[vnum] = newVert;
-            newVert.left = vertex[where[i]];
-            newVert.right = vertex[where[j]];
-            //System.out.println("Joining vertices "+where[i]+" and "+where[j]);
-            newVert.parent = null;
-            newVert.left.parent = newVert.right.parent = newVert;
-            newVert.left.edgeLength = dist[i][j] / 2 - (remN > 2 ? (sumDist[i] - sumDist[j]) / (2 * remN - 4) : 0.001);
-            newVert.right.edgeLength = dist[i][j] - newVert.left.edgeLength;
+                int[] where = new int[dist.length];
+                for (int i = 0; i < where.length; i++) {
+                    where[i] = i;
+                }
+                // the first n vertices will be the leaves
+                for (int i = 0; i < seq.length; i++) {
+                    vertex[i] = new Vertex(this, 0.0, seq[i], names[i], sequences[i]);
+                }
+                // NJ main recursion
+                int vnum = seq.length;
+                Vertex newVert;
+                for (int remN = dist.length; remN > 1; remN--) {
+                    stoppable();
+                    double minVal = BIGNUM;
+                    double val = 0.0;
+                    int i = -1;
+                    int j = -1;
+                    for (int k = 1; k < dist.length; k++) {
+                        for (int l = 0; l < k; l++) {
+                            if (where[k] > -1 && where[l] > -1 && (val = (remN - 2) * dist[k][l] - sumDist[k] - sumDist[l]) < minVal) {
+                                i = k;
+                                j = l;
+                                minVal = val;
+                            }
+                        }
+                    }
+                    newVert = new Vertex(this, 0.0);    /* new vertex */
+                    vertex[vnum] = newVert;
+                    newVert.left = vertex[where[i]];
+                    newVert.right = vertex[where[j]];
+                    //System.out.println("Joining vertices "+where[i]+" and "+where[j]);
+                    newVert.parent = null;
+                    newVert.left.parent = newVert.right.parent = newVert;
+                    newVert.left.edgeLength = dist[i][j] / 2 - (remN > 2 ? (sumDist[i] - sumDist[j]) / (2 * remN - 4) : 0.001);
+                    newVert.right.edgeLength = dist[i][j] - newVert.left.edgeLength;
 
-            val = (newVert.left.length + newVert.right.length) / 0.2;
-            newVert.left.edgeLength /= val;
-            newVert.right.edgeLength /= val;
+                    val = (newVert.left.length + newVert.right.length) / 0.2;
+                    newVert.left.edgeLength /= val;
+                    newVert.right.edgeLength /= val;
 
-            if (newVert.left.edgeLength < 0.01) {
-                newVert.left.edgeLength = 0.01;
-            }
-            if (newVert.right.edgeLength < 0.01) {
-                newVert.right.edgeLength = 0.01;
-            }
+                    if (newVert.left.edgeLength < 0.01) {
+                        newVert.left.edgeLength = 0.01;
+                    }
+                    if (newVert.right.edgeLength < 0.01) {
+                        newVert.right.edgeLength = 0.01;
+                    }
 
 
-            //	    newVert.left.edgeLength = 0.1;
-            //newVert.right.edgeLength = 0.1;
+                    //	    newVert.left.edgeLength = 0.1;
+                    //newVert.right.edgeLength = 0.1;
 
-            newVert.left.edgeChangeUpdate();
-            newVert.right.edgeChangeUpdate();
+                    newVert.left.edgeChangeUpdate();
+                    newVert.right.edgeChangeUpdate();
 
             AlignColumn fake = new AlignColumn(newVert);
             newVert.first = fake;

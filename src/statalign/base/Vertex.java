@@ -377,6 +377,7 @@ public class Vertex {
             //System.out.println("calling the right child");
             right.calcFelsRecursively();
         }
+
         calcFelsen();
         calcOrphan();
     }

@@ -2,6 +2,12 @@ package statalign.base.thread;
 
 import statalign.base.*;
 import statalign.io.RawSequences;
+import statalign.model.score.SubstitutionScore;
+import statalign.model.subst.SubstitutionModel;
+import statalign.model.subst.plugins.Kimura3;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The main (suspendable) thread for background MCMC calculation.
@@ -66,6 +72,18 @@ public class MainThread extends StoppableThread {
 
             ITree tree = new Spannoid(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
                     owner.inputData.model, owner.inputData.model.attachedScoringScheme);
+
+
+            /*
+            String newick = "((D:0.1,(F:0.1,(E:0.2,C:0.05):0.2)B:0.1):0.2)A;";
+            String[] my_seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AGACA", "TTGACC", "GTAC" };
+            Map<String, Integer> nameMap = new HashMap<String, Integer>();
+            for (int k = 0; k < my_seqs.length; k++)
+                nameMap.put("" + (char)((int)'A' + k), k);
+
+            ITree tree = new Spannoid(newick, my_seqs, nameMap,
+                    owner.inputData.model, owner.inputData.model.attachedScoringScheme);
+                    */
 
 			// Mcmc mcmc = new Mcmc(tree, owner.inputData.pars, owner.postProcMan);
 			// int errorCode = mcmc.doMCMC();
