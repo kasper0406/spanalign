@@ -335,12 +335,14 @@ public class Spannoid extends Stoppable implements ITree {
         final int n = sequence.length();
 
         double prob = 0;
+        /*
         if (n == 0)
             prob = Math.log(1 - lambda / mu);
         else
             prob = Math.log(1 - lambda / mu) + Math.log(lambda / mu)
                 + Math.log(1 - r)
                 + (n - 1) * (Math.log((lambda / mu) * (1 - r) + r));
+        */
 
         // TODO: Consider generalizing this!
         prob += n * Math.log((double)1 / 4);
