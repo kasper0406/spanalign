@@ -1,67 +1,23 @@
 package statalign.base;
 
-public class SteinerTreeMCMCStrategy implements MCMCStrategy {
-    private Tree tree;
+public class SteinerTreeMCMCStrategy extends AbstractTreeMCMCStrategy<Tree, SteinerTreeUpdater> {
+    // private Tree tree;
     private double[] weights; // for selecting internal tree node
 
     final static double LEAFCOUNT_POWER = 1.0;
     final static double SELTRLEVPROB[] = { 0.9, 0.6, 0.4, 0.2, 0 };
 
     public SteinerTreeMCMCStrategy(Tree tree) {
+        super(tree, new SteinerTreeUpdater());
+
         this.tree = tree;
         weights = new double[tree.vertex.length];
     }
 
-    public ITree getTree() {
-        return tree;
-    }
-
     @Override
     public boolean sampleEdge() {
-        // System.out.print("Edge: ");
         int i = Utils.generator.nextInt(tree.vertex.length - 1);
-        double oldEdge = tree.vertex[i].edgeLength;
-        double oldLogLikelihood = tree.getLogLike();
-        while ((tree.vertex[i].edgeLength = oldEdge
-                + Utils.generator.nextDouble() * Utils.EDGE_SPAN
-                - (Utils.EDGE_SPAN / 2.0)) < 0.01)
-            ;
-        tree.vertex[i].edgeChangeUpdate();
-        // Vertex actual = tree.vertex[i];
-        // while(actual != null){
-        // actual.calcFelsen();
-        // actual.calcOrphan();
-        // actual.calcIndelLogLike();
-        // actual = actual.parent;
-        // }
-        tree.vertex[i].calcAllUp();
-        double newLogLikelihood = tree.getLogLike();
-        if (Utils.generator.nextDouble() < (Math.exp((newLogLikelihood
-                - oldLogLikelihood - tree.vertex[i].edgeLength + oldEdge)
-                * tree.heat) * (Math.min(oldEdge - 0.01, Utils.EDGE_SPAN / 2.0) + Utils.EDGE_SPAN / 2.0))
-                / (Math.min(tree.vertex[i].edgeLength - 0.01,
-                Utils.EDGE_SPAN / 2.0) + Utils.EDGE_SPAN / 2.0)) {
-            // acceptance, do nothing
-            // System.out.println("accepted (old: "+oldLogLikelihood+" new: "+newLogLikelihood+")");
-
-            return true;
-        } else {
-            // reject, restore
-            // System.out.print("Rejected! i: "+i+"\tOld likelihood: "+oldLogLikelihood+"\tNew likelihood: "+newLogLikelihood);
-            tree.vertex[i].edgeLength = oldEdge;
-            tree.vertex[i].edgeChangeUpdate();
-            // actual = tree.vertex[i];
-            // while(actual != null){
-            // actual.calcFelsen();
-            // actual.calcOrphan();
-            // actual.calcIndelLogLike();
-            // actual = actual.parent;
-            // }
-            tree.vertex[i].calcAllUp();
-            // System.out.println("rejected (old: "+oldLogLikelihood+" new: "+newLogLikelihood+")");
-
-            return false;
-        }
+        return sampleEdge(tree.vertex[i]);
     }
 
     @Override
@@ -207,119 +163,6 @@ public class SteinerTreeMCMCStrategy implements MCMCStrategy {
             tree.root.calcIndelRecursivelyWithCheck();
         }
 
-        return accepted;
-    }
-
-    @Override
-    public boolean sampleIndelParameter() {
-        boolean accepted = false;
-        switch (Utils.generator.nextInt(3)) {
-            case 0:
-                // System.out.print("Indel param R: ");
-                double oldR = tree.hmm2.params[0];
-                double oldLogLikelihood = tree.root.orphanLogLike
-                        + tree.root.indelLogLike;
-                while ((tree.hmm2.params[0] = oldR + Utils.generator.nextDouble()
-                        * Utils.R_SPAN - Utils.R_SPAN / 2.0) <= 0.0
-                        || tree.hmm2.params[0] >= 1.0)
-                    ;
-                for (int i = 0; i < tree.vertex.length; i++) {
-                    tree.vertex[i].updateHmmMatrices();
-                }
-                tree.root.calcIndelLikeRecursively();
-                double newLogLikelihood = tree.root.orphanLogLike
-                        + tree.root.indelLogLike;
-                if (Utils.generator.nextDouble() < Math
-                        .exp((newLogLikelihood - oldLogLikelihood) * tree.heat)
-                        * (Math.min(1.0 - oldR, Utils.R_SPAN / 2.0) + Math.min(
-                        oldR, Utils.R_SPAN / 2.0))
-                        / (Math.min(1.0 - tree.hmm2.params[0], Utils.R_SPAN / 2.0) + Math
-                        .min(tree.hmm2.params[0], Utils.R_SPAN / 2.0))) {
-                    // accept, do nothing
-                    // System.out.println("accepted (old: "+oldLogLikelihood+" new: "+newLogLikelihood+")");
-                    accepted = true;
-                } else {
-                    // restore
-                    tree.hmm2.params[0] = oldR;
-                    for (int i = 0; i < tree.vertex.length; i++) {
-                        tree.vertex[i].updateHmmMatrices();
-                    }
-                    tree.root.calcIndelLikeRecursively();
-                    // System.out.println("rejected (old: "+oldLogLikelihood+" new: "+newLogLikelihood+")");
-                }
-
-                break;
-            case 1:
-                // ///////////////////////////////////////////////
-                // System.out.print("Indel param Lambda: ");
-                double oldLambda = tree.hmm2.params[1];
-                oldLogLikelihood = tree.root.orphanLogLike + tree.root.indelLogLike;
-                while ((tree.hmm2.params[1] = oldLambda
-                        + Utils.generator.nextDouble() * Utils.LAMBDA_SPAN
-                        - Utils.LAMBDA_SPAN / 2.0) <= 0.0
-                        || tree.hmm2.params[1] >= tree.hmm2.params[2])
-                    ;
-                for (int i = 0; i < tree.vertex.length; i++) {
-                    tree.vertex[i].updateHmmMatrices();
-                }
-                tree.root.calcIndelLikeRecursively();
-                newLogLikelihood = tree.root.orphanLogLike + tree.root.indelLogLike;
-                if (Utils.generator.nextDouble() < Math.exp((newLogLikelihood
-                        - oldLogLikelihood - tree.hmm2.params[1] + oldLambda)
-                        * tree.heat)
-                        * (Math.min(Utils.LAMBDA_SPAN / 2.0, tree.hmm2.params[2]
-                        - oldLambda) + Math.min(oldLambda,
-                        Utils.LAMBDA_SPAN / 2.0))
-                        / (Math.min(Utils.LAMBDA_SPAN / 2.0, tree.hmm2.params[2]
-                        - tree.hmm2.params[1]) + Math.min(
-                        tree.hmm2.params[1], Utils.LAMBDA_SPAN / 2.0))) {
-                    // accept, do nothing
-                    // System.out.println("accepted (old: "+oldLogLikelihood+" new: "+newLogLikelihood+" oldLambda: "+oldLambda+" newLambda: "+tree.hmm2.params[1]+")");
-                    accepted = true;
-                } else {
-                    // restore
-                    tree.hmm2.params[1] = oldLambda;
-                    for (int i = 0; i < tree.vertex.length; i++) {
-                        tree.vertex[i].updateHmmMatrices();
-                    }
-                    tree.root.calcIndelLikeRecursively();
-                    // System.out.println("rejected (old: "+oldLogLikelihood+" new: "+newLogLikelihood+" oldLambda: "+oldLambda+" newLambda: "+tree.hmm2.params[1]+")");
-                }
-                break;
-            case 2:
-                // ///////////////////////////////////////////////////////
-                // System.out.print("Indel param Mu: ");
-                double oldMu = tree.hmm2.params[2];
-                oldLogLikelihood = tree.getLogLike();
-                while ((tree.hmm2.params[2] = oldMu + Utils.generator.nextDouble()
-                        * Utils.MU_SPAN - Utils.MU_SPAN / 2.0) <= tree.hmm2.params[1])
-                    ;
-                for (int i = 0; i < tree.vertex.length; i++) {
-                    tree.vertex[i].updateHmmMatrices();
-                }
-                tree.root.calcIndelLikeRecursively();
-                newLogLikelihood = tree.getLogLike();
-                if (Utils.generator.nextDouble() < Math.exp((newLogLikelihood
-                        - oldLogLikelihood - tree.hmm2.params[2] + oldMu)
-                        * tree.heat)
-                        * (Utils.MU_SPAN / 2.0 + Math.min(oldMu
-                        - tree.hmm2.params[1], Utils.MU_SPAN / 2.0))
-                        / (Utils.MU_SPAN / 2.0 + Math.min(tree.hmm2.params[2]
-                        - tree.hmm2.params[1], Utils.MU_SPAN / 2.0))) {
-                    // accept, do nothing
-                    // System.out.println("accepted (old: "+oldLogLikelihood+" new: "+newLogLikelihood+")");
-                    accepted = true;
-                } else {
-                    // restore
-                    tree.hmm2.params[2] = oldMu;
-                    for (int i = 0; i < tree.vertex.length; i++) {
-                        tree.vertex[i].updateHmmMatrices();
-                    }
-                    tree.root.calcIndelLikeRecursively();
-                    // System.out.println("rejected (old: "+oldLogLikelihood+" new: "+newLogLikelihood+")");
-                }
-                break;
-        }
         return accepted;
     }
 

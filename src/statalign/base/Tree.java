@@ -660,6 +660,11 @@ public class Tree extends Stoppable implements ITree {
         return hmm2.params[2];
     }
 
+    @Override
+    public double getHeat() {
+        return heat;
+    }
+
     /**
      * Returns with a String array containing the alignment of sequences on the tree.
      * @param type This can be

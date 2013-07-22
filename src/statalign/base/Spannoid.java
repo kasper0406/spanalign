@@ -19,7 +19,7 @@ import java.util.*;
 
 public class Spannoid extends Stoppable implements ITree {
     private int n;
-    private Set<Tree> components = new HashSet<Tree>();
+    private List<Tree> components = new ArrayList<Tree>();
 
     private final String BONPHY_PATH = "/Users/kasper0406/Desktop/bonphy/bonphy.py";
 
@@ -30,6 +30,8 @@ public class Spannoid extends Stoppable implements ITree {
      */
     private Map<Integer, Set<Vertex>> componentConnections = new HashMap<Integer, Set<Vertex>>();
     private Map<Vertex, Integer> labeledVertexIds = new HashMap<Vertex, Integer>();
+
+    private double heat = 1.0d;
 
     public Spannoid(String[] sequences, String[] names,
                     SubstitutionModel model, SubstitutionScore ss)
@@ -399,6 +401,11 @@ public class Spannoid extends Stoppable implements ITree {
         return getRepresentant().hmm2.params[2];
     }
 
+    @Override
+    public double getHeat() {
+        return heat;
+    }
+
     public State getState() {
         Tree firstComponent = components.iterator().next();
         final Vertex rootVertex = firstComponent.vertex[0];
@@ -558,6 +565,12 @@ public class Spannoid extends Stoppable implements ITree {
         return getState().getNewickString();
     }
 
+    public Vertex getRandomVertex() {
+        int i = Utils.generator.nextInt(components.size());
+        int j = Utils.generator.nextInt(components.get(i).vertex.length);
+        return components.get(i).vertex[j];
+    }
+
     public static void main(String[] args) throws Exception {
         String[] seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AGACA", "TTGACC", "GTAC" };
         String[] names = new String[] { "A", "B", "C", "D", "E", "F" };
@@ -606,5 +619,27 @@ public class Spannoid extends Stoppable implements ITree {
             i++;
         }
         */
+    }
+
+    public static class SpannoidUpdater implements ITreeUpdater<Spannoid> {
+        private static SteinerTreeUpdater updater = new SteinerTreeUpdater();
+
+        @Override
+        public void updateR(Spannoid tree, double newR) {
+            for (Tree component : tree.components)
+                updater.updateR(component, newR);
+        }
+
+        @Override
+        public void updateLambda(Spannoid tree, double newLambda) {
+            for (Tree component : tree.components)
+                updater.updateLambda(component, newLambda);
+        }
+
+        @Override
+        public void updateMu(Spannoid tree, double newMu) {
+            for (Tree component : tree.components)
+                updater.updateMu(component, newMu);
+        }
     }
 }

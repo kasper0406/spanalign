@@ -14,4 +14,6 @@ public interface ITree {
     double getR();
     double getLambda();
     double getMu();
+
+    double getHeat();
 }

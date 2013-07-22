@@ -1,29 +1,25 @@
 package statalign.base;
 
-public class SpannoidMCMCStrategy implements MCMCStrategy {
-    private Spannoid spannoid;
-
+public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spannoid.SpannoidUpdater> {
     public SpannoidMCMCStrategy(Spannoid spannoid) {
-        this.spannoid = spannoid;
+        super(spannoid, new Spannoid.SpannoidUpdater());
     }
 
     @Override
     public ITree getTree() {
-        return spannoid;
+        return tree;
     }
 
     @Override
     public boolean sampleEdge() {
-        return false;
+        // Update random edge in random component
+        // TODO: Maybe take fake root element into account?!
+        Vertex vertex = tree.getRandomVertex();
+        return sampleEdge(vertex);
     }
 
     @Override
     public boolean sampleTopology() {
-        return false;
-    }
-
-    @Override
-    public boolean sampleIndelParameter() {
         return false;
     }
 

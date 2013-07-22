@@ -75,7 +75,6 @@ public class MainThread extends StoppableThread {
                     owner.inputData.model, owner.inputData.model.attachedScoringScheme);
             Mcmc mcmc = new Mcmc(new SpannoidMCMCStrategy(spannoid), owner.inputData.pars, owner.postProcMan);
 
-
             /*
             String newick = "((D:0.1,(F:0.1,(E:0.2,C:0.05):0.2)B:0.1):0.2)A;";
             String[] my_seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AGACA", "TTGACC", "GTAC" };
