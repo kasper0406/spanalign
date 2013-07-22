@@ -6,6 +6,7 @@ import statalign.postprocess.plugins.contree.CNetwork;
 public interface ITree {
     double getLogLike();
     double getLogPrior();
+    double getOrphanLogLike();
     State getState();
 
     SubstitutionModel getSubstitutionModel();

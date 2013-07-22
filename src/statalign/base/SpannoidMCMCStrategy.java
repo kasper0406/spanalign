@@ -14,7 +14,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
     public boolean sampleEdge() {
         // Update random edge in random component
         // TODO: Maybe take fake root element into account?!
-        Vertex vertex = tree.getRandomVertex();
+        Vertex vertex = updater.getRandomVertex(tree);
         return sampleEdge(vertex);
     }
 
@@ -25,7 +25,9 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
     @Override
     public boolean sampleAlignment() {
-        return false;
+        // TODO: Consider picking component in which to resample alignment flipping some coin distributed by component sizes.
+        Tree component = updater.getRandomComponent(tree);
+        return sampleAlignment(component);
     }
 
     @Override

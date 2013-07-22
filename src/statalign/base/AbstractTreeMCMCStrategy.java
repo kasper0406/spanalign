@@ -4,6 +4,9 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
     protected T tree;
     protected Updater updater;
 
+    final static double LEAFCOUNT_POWER = 1.0;
+    final static double SELTRLEVPROB[] = { 0.9, 0.6, 0.4, 0.2, 0 };
+
     public AbstractTreeMCMCStrategy(T tree, Updater updater) {
         this.tree = tree;
         this.updater = updater;
@@ -148,6 +151,97 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
             // System.out.println("rejected (old: "+oldLogLikelihood+" new: "+newLogLikelihood+")");
 
             return false;
+        }
+    }
+
+    /**
+     * Samples now alignment for a given tree.
+     */
+    protected boolean sampleAlignment(Tree tree)
+    {
+        for (int i = 0; i < tree.vertex.length; i++) {
+            tree.vertex[i].selected = false;
+        }
+        // System.out.print("Alignment: ");
+        double oldLogLi = tree.getLogLike();
+        // System.out.println("fast indel before: "+tree.root.indelLogLike);
+        tree.countLeaves(); // calculates recursively how many leaves we have
+        // below this node
+
+        double[] weights = new double[tree.vertex.length];
+        for (int i = 0; i < weights.length; i++) {
+            weights[i] = Math.pow(tree.vertex[i].leafCount, LEAFCOUNT_POWER);
+        }
+        int k = Utils.weightedChoose(weights, null);
+        // System.out.println("Sampling from the subtree: "+tree.vertex[k].print());
+        tree.vertex[k].selectSubtree(SELTRLEVPROB, 0);
+        double bpp = tree.vertex[k].selectAndResampleAlignment();
+        double newLogLi = tree.getLogLike();
+
+        // String[] printedAlignment = tree.printedAlignment("StatAlign");
+        // for(String i: printedAlignment)
+        // System.out.println(i);
+        //
+        // System.out.println("-----------------------------------------------------------------------------");
+        // double fastFels = tree.root.orphanLogLike;
+        // double fastIns = tree.root.indelLogLike;
+        // report();
+        // tree.root.first.seq[0] = 0.0;
+        // System.out.println("Old before: "+tree.root.old.indelLogLike);
+        // tree.root.calcFelsRecursivelyWithCheck();
+        // tree.root.calcIndelRecursivelyWithCheck();
+        // tree.root.calcIndelLikeRecursively();
+        // System.out.println("Old after: "+tree.root.old.indelLogLike);
+        // System.out.println("Check logli: "+tree.getLogLike()+" fastFels: "+fastFels+" slowFels: "+tree.root.orphanLogLike+
+        // " fastIns: "+fastIns+" slowIns: "+tree.root.indelLogLike);
+        // System.out.println("selected subtree: "+tree.vertex[k].print());
+        // System.out.println("bpp: "+bpp+"old: "+oldLogLi+"new: "+newLogLi +
+        // "heated diff: " + ((newLogLi - oldLogLi) * tree.heat));
+        if (Math.log(Utils.generator.nextDouble()) < bpp
+                + (newLogLi - oldLogLi) * tree.heat) {
+            // accepted
+            // System.out.println("accepted (old: "+oldLogLi+" new: "+newLogLi+")");
+            return true;
+        } else {
+            // refused
+            // String[] s = tree.printedAlignment();
+            tree.vertex[k].alignRestore();
+            // s = tree.printedAlignment();
+            // System.out.println("rejected (old: "+oldLogLi+" new: "+newLogLi+")");
+            // System.out.println("after reject fast: "+tree.root.indelLogLike);
+            // tree.root.calcIndelRecursivelyWithCheck();
+            // System.out.println(" slow: "+tree.root.indelLogLike);
+
+            return false;
+        }
+        // tree.root.calcFelsRecursivelyWithCheck();
+        // tree.root.calcIndelRecursivelyWithCheck();
+    }
+
+    @Override
+    public boolean sampleSubstParameter() {
+        if (tree.getSubstitutionModel().params.length == 0)
+            return false;
+        else {
+            double oldlikelihood = tree.getOrphanLogLike();
+            // Note that we should only sample from one substitution parameter,
+            // since the substitution model is shared between all trees!
+            double mh = tree.getSubstitutionModel().sampleParameter();
+            updater.recalcSubstitutionParameters(tree);
+            double newlikelihood = tree.getOrphanLogLike();
+            if (Utils.generator.nextDouble() < Math.exp(mh
+                    + (Math.log(tree.getSubstitutionModel().getPrior())
+                    + newlikelihood - oldlikelihood))
+                    * tree.getHeat()) {
+                // System.out.println("Substitution parameter: accepted (old: "+oldlikelihood+" new: "+newlikelihood+")");
+                return true;
+            } else {
+                tree.getSubstitutionModel().restoreParameter();
+                updater.recalcSubstitutionParameters(tree);
+                // System.out.println("Substitution parameter: rejected (old: "+oldlikelihood+" new: "+newlikelihood+")");
+
+                return false;
+            }
         }
     }
 }

@@ -27,4 +27,12 @@ public class SteinerTreeUpdater implements ITreeUpdater<Tree> {
     {
         updateParams(tree, tree.getR(), tree.getLambda(), newMu);
     }
+
+    @Override
+    public void recalcSubstitutionParameters(Tree tree) {
+        for (int i = 0; i < tree.vertex.length; i++) {
+            tree.vertex[i].updateTransitionMatrix();
+        }
+        tree.root.calcFelsRecursively();
+    }
 }

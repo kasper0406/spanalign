@@ -648,6 +648,11 @@ public class Tree extends Stoppable implements ITree {
 				hmm2.params[1] - hmm2.params[2];
 	}
 
+    @Override
+    public double getOrphanLogLike() {
+        return root.orphanLogLike;
+    }
+
     public double getR() {
         return hmm2.params[0];
     }

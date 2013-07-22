@@ -379,6 +379,20 @@ public class Spannoid extends Stoppable implements ITree {
                 - getLambda() - getMu();
     }
 
+    @Override
+    public double getOrphanLogLike() {
+        double orphanLogLike = 0;
+        for (Tree component : components)
+            orphanLogLike += component.getOrphanLogLike();
+
+        for (Set<Vertex> connections : componentConnections.values()) {
+            Vertex vertex = connections.iterator().next();
+            orphanLogLike -= probOfSequence(vertex) * (connections.size() - 1);
+        }
+
+        return orphanLogLike;
+    }
+
     private Tree getRepresentant() {
         return components.iterator().next();
     }
@@ -565,12 +579,6 @@ public class Spannoid extends Stoppable implements ITree {
         return getState().getNewickString();
     }
 
-    public Vertex getRandomVertex() {
-        int i = Utils.generator.nextInt(components.size());
-        int j = Utils.generator.nextInt(components.get(i).vertex.length);
-        return components.get(i).vertex[j];
-    }
-
     public static void main(String[] args) throws Exception {
         String[] seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AGACA", "TTGACC", "GTAC" };
         String[] names = new String[] { "A", "B", "C", "D", "E", "F" };
@@ -640,6 +648,23 @@ public class Spannoid extends Stoppable implements ITree {
         public void updateMu(Spannoid tree, double newMu) {
             for (Tree component : tree.components)
                 updater.updateMu(component, newMu);
+        }
+
+        @Override
+        public void recalcSubstitutionParameters(Spannoid tree) {
+            for (Tree component : tree.components)
+                updater.recalcSubstitutionParameters(component);
+        }
+
+        public Tree getRandomComponent(Spannoid spannoid) {
+            int i = Utils.generator.nextInt(spannoid.components.size());
+            return spannoid.components.get(i);
+        }
+
+        public Vertex getRandomVertex(Spannoid spannoid) {
+            Tree component = getRandomComponent(spannoid);
+            int j = Utils.generator.nextInt(component.vertex.length);
+            return component.vertex[j];
         }
     }
 }
