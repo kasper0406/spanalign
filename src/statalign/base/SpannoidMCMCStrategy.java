@@ -29,9 +29,4 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         Tree component = updater.getRandomComponent(tree);
         return sampleAlignment(component);
     }
-
-    @Override
-    public boolean sampleSubstParameter() {
-        return false;
-    }
 }

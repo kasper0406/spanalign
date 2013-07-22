@@ -1,4 +1,4 @@
-package statalign.postprocess.plugins.contree;
+package statalign.postprocess.plugins;
 
 import statalign.base.State;
 import statalign.postprocess.Postprocess;
@@ -104,6 +104,9 @@ public class SpannoidViewer extends Postprocess {
     public static class SpannoidViewerGUI extends JPanel {
         @Override
         public void paintComponent(Graphics graphics) {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, getWidth(), getHeight());
+
             BufferedImage image = null;
             try {
                 image = ImageIO.read(new File("spannoid.jpg"));

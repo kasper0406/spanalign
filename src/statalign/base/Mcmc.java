@@ -109,16 +109,16 @@ public class Mcmc extends Stoppable {
 		isParallel = true;
 	}
 
-	private int alignmentSampled = 0;
-	private int alignmentAccepted = 0;
-	private int edgeSampled = 0;
-	private int edgeAccepted = 0;
-	private int topologySampled = 0;
-	private int topologyAccepted = 0;
-	private int indelSampled = 0;
-	private int indelAccepted = 0;
-	private int substSampled = 0;
-	private int substAccepted = 0;
+	public int alignmentSampled = 0;
+    public int alignmentAccepted = 0;
+    public int edgeSampled = 0;
+    public int edgeAccepted = 0;
+    public int topologySampled = 0;
+    public int topologyAccepted = 0;
+    public int indelSampled = 0;
+    public int indelAccepted = 0;
+    public int substSampled = 0;
+    public int substAccepted = 0;
 	
 	private static final DecimalFormat df = new DecimalFormat("0.0000");
 
