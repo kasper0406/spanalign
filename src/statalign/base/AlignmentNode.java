@@ -23,8 +23,6 @@ public class AlignmentNode extends LikelihoodNode {
     boolean selected;                // shows if vertex is part of the selected subtree
 
 
-
-
     Vertex brother() {
         return parent.left == this ? parent.right : parent.left;
     }
