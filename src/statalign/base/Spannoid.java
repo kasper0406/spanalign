@@ -23,6 +23,8 @@ public class Spannoid extends Stoppable implements ITree {
 
     private final String BONPHY_PATH = "/Users/kasper0406/Desktop/bonphy/bonphy.py";
 
+    private SubstitutionModel substitutionModel;
+
     /*
      * Description...
      */
@@ -32,6 +34,7 @@ public class Spannoid extends Stoppable implements ITree {
     public Spannoid(String[] sequences, String[] names,
                     SubstitutionModel model, SubstitutionScore ss)
             throws StoppedException, IOException, InterruptedException {
+        this.substitutionModel = model;
         n = sequences.length;
         for (int i = 0; i < n; i++)
             componentConnections.put(i, new HashSet<Vertex>());
@@ -96,6 +99,7 @@ public class Spannoid extends Stoppable implements ITree {
     public Spannoid(String newick, String[] sequences, Map<String, Integer> nameMap,
                     SubstitutionModel model, SubstitutionScore ss) throws StoppedException
     {
+        this.substitutionModel = model;
         constructFromNewick(newick, sequences, nameMap, model, ss);
     }
 
@@ -363,6 +367,38 @@ public class Spannoid extends Stoppable implements ITree {
         return logLike;
     }
 
+    @Override
+    public double getLogPrior() {
+        double edgeSum = 0.0;
+        for (Tree component : components)
+            edgeSum += component.root.calcSumOfEdges();
+
+        return - edgeSum - Math.log(substitutionModel.getPrior())
+                - getLambda() - getMu();
+    }
+
+    private Tree getRepresentant() {
+        return components.iterator().next();
+    }
+
+    public double getR() {
+        // ASSUMPTION: These two params are consistent between components.
+        // TODO: Get rid of assumption?
+        return getRepresentant().hmm2.params[0];
+    }
+
+    public double getLambda() {
+        // ASSUMPTION: These two params are consistent between components.
+        // TODO: Get rid of assumption?
+        return getRepresentant().hmm2.params[1];
+    }
+
+    public double getMu() {
+        // ASSUMPTION: These two params are consistent between components.
+        // TODO: Get rid of assumption?
+        return getRepresentant().hmm2.params[2];
+    }
+
     public State getState() {
         Tree firstComponent = components.iterator().next();
         final Vertex rootVertex = firstComponent.vertex[0];
@@ -469,6 +505,11 @@ public class Spannoid extends Stoppable implements ITree {
         return state;
     }
 
+    @Override
+    public SubstitutionModel getSubstitutionModel() {
+        return substitutionModel;
+    }
+
     /**
      * Given two nodes parent and child, and given the alignment of child relative
      * to parent as described in Vertex.getAlign(), this method returns the
@@ -511,6 +552,10 @@ public class Spannoid extends Stoppable implements ITree {
         for (Tree component : components)
             nodes += component.vertex.length;
         return nodes;
+    }
+
+    public String printedTree() {
+        return getState().getNewickString();
     }
 
     public static void main(String[] args) throws Exception {

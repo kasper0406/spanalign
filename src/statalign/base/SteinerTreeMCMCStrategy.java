@@ -12,6 +12,10 @@ public class SteinerTreeMCMCStrategy implements MCMCStrategy {
         weights = new double[tree.vertex.length];
     }
 
+    public ITree getTree() {
+        return tree;
+    }
+
     @Override
     public boolean sampleEdge() {
         // System.out.print("Edge: ");

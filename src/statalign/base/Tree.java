@@ -60,7 +60,7 @@ public class Tree extends Stoppable implements ITree {
 	public double heat = 1.0d;
 
 	/* TODO: what the fuck? */
-    public CNetwork network; 
+    // public CNetwork network;
 
 
     Tree() {
@@ -601,9 +601,18 @@ public class Tree extends Stoppable implements ITree {
 		for(i = 0; i < nn; i++) {
 			v = vertex[i];
 
-            state.children[i] = new int[2];
-			state.children[i][0] = v.left != null ? lookup.get(v.left) : -1;
-			state.children[i][1] = v.right != null ? lookup.get(v.right) : -1;
+            ArrayList<Integer> children = new ArrayList<Integer>(2);
+            if (v.left != null)
+                children.add(lookup.get(v.left));
+            if (v.right != null)
+                children.add(lookup.get(v.right));
+
+            // Would be nice if this unboxing could be done automatically,
+            // but Java seems to lack support for this :(!
+            state.children[i] = new int[children.size()];
+            for (int j = 0; j < children.size(); j++)
+                state.children[i][j] = children.get(j);
+
 			state.parent[i] = v.parent != null ? lookup.get(v.parent) : -1;
 			state.edgeLen[i] = v.edgeLength;
 
@@ -621,6 +630,11 @@ public class Tree extends Stoppable implements ITree {
 		return state;
 	}
 
+    @Override
+    public SubstitutionModel getSubstitutionModel() {
+        return substitutionModel;
+    }
+
     /**
      * Generates a String contaning the description of the tree in Newick format.
      * @return the string contaning the description of the tree in Newick format.
@@ -633,6 +647,18 @@ public class Tree extends Stoppable implements ITree {
 		return - root.calcSumOfEdges() - Math.log(substitutionModel.getPrior()) - 
 				hmm2.params[1] - hmm2.params[2];
 	}
+
+    public double getR() {
+        return hmm2.params[0];
+    }
+
+    public double getLambda() {
+        return hmm2.params[1];
+    }
+
+    public double getMu() {
+        return hmm2.params[2];
+    }
 
     /**
      * Returns with a String array containing the alignment of sequences on the tree.

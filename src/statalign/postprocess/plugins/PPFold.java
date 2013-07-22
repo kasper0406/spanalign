@@ -308,7 +308,8 @@ public class PPFold extends statalign.postprocess.Postprocess {
 
 		}
 		
-		sizeOfAlignments = (mcmc.tree.vertex.length + 1) / 2;
+		// sizeOfAlignments = (mcmc.getTree().vertex.length + 1) / 2;
+        sizeOfAlignments = mcmc.getTree().getState().nl;
 		noSamples = 0;
 
 		t = new String[sizeOfAlignments][];
@@ -1475,7 +1476,9 @@ public class PPFold extends statalign.postprocess.Postprocess {
 
 	public static com.ppfold.algo.Tree getPPfoldTree(Mcmc mcmc) {
 		try {
-			return NewickReader.parse(mcmc.tree.printedTree());
+            // TODO: Consider if this is okay!
+			// return NewickReader.parse(mcmc.getTree().printedTree());
+            return NewickReader.parse(mcmc.getTree().getState().getNewickString());
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}

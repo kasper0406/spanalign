@@ -87,21 +87,27 @@ public class State {
 	 * @param nn  number of nodes total (including leaves) , initialize if true. initializes the variables of this object.
 	 */
 	public State(int nn) {
-		this.nn = nn;
-		nl = (nn+1)/2;
-		
-		// left = new int[nn];
-		// right = new int[nn];
+        this(nn, (nn + 1) / 2);
+	}
+
+    public State(int nn, int nl) {
+        this.nn = nn;
+        this.nl = nl;
+
+        // left = new int[nn];
+        // right = new int[nn];
         children = new int[nn][];
 
-		parent = new int[nn];
-		edgeLen = new double[nn];
-		
-		align = new int[nn][];
-		felsen = new double[nn][][];
-		seq = new String[nn];
-		name = new String[nn];
-	}
+        parent = new int[nn];
+        edgeLen = new double[nn];
+
+        align = new int[nn][];
+        felsen = new double[nn][][];
+        seq = new String[nn];
+        name = new String[nn];
+        for (int i = 0; i < nn; i++)
+            name[i] = "";
+    }
 	
 	/**
 	 * Returns string representation of alignment between <i>node</i> and its parent. Uses

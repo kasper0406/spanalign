@@ -67,7 +67,9 @@ public class Mcmc extends Stoppable {
 	public CNetwork network; 
 
 	/** Current tree in the MCMC chain. */
-	public Tree tree;
+	// public ITree tree;
+
+    private MCMCStrategy strategy;
 
 	/**
 	 * MCMC parameters including the number of burn-in steps, the total number
@@ -85,21 +87,23 @@ public class Mcmc extends Stoppable {
 	/** True while the MCMC is in the burn-in phase. */
 	public boolean burnin;
 
-	public Mcmc(Tree tree, MCMCPars mcmcpars, PostprocessManager ppm) {
+    private double heat;
+
+	public Mcmc(MCMCStrategy strategy, MCMCPars mcmcpars, PostprocessManager ppm) {
 		postprocMan = ppm;
 		ppm.mcmc = this;
-		this.tree = tree;
+		this.strategy = strategy;
 		this.mcmcpars = mcmcpars;
 		this.autoPar = mcmcpars.autoParamSettings;
-		this.tree.heat = 1.0d;
+		heat = 1.0d;
 	}
 
-	public Mcmc(Tree tree, MCMCPars mcmcpars, PostprocessManager ppm,
+	public Mcmc(MCMCStrategy strategy, MCMCPars mcmcpars, PostprocessManager ppm,
 			int noOfProcesses, int rank, double heat) {
-		this(tree, mcmcpars, ppm);
+		this(strategy, mcmcpars, ppm);
 		this.noOfProcesses = noOfProcesses;
 		this.rank = rank;
-		this.tree.heat = heat;
+		heat = heat;
 
 		// Is parallel!
 		isParallel = true;
@@ -131,7 +135,7 @@ public class Mcmc extends Stoppable {
 		if (isParallel) {
 			String str = String.format(
 					"Starting MCMC chain no. %d/%d (heat: %.2f)\n\n", 
-					rank + 1, noOfProcesses, tree.heat);
+					rank + 1, noOfProcesses, heat);
 			MPIUtils.println(rank, str);
 			swapGenerator = new Random(mcmcpars.swapSeed);
 		} else {
@@ -174,7 +178,7 @@ public class Mcmc extends Stoppable {
 				// the plugins.
 				if ((isParallel && MPIUtils.isMaster(rank)) || !isParallel) {
 					// TODO do above inside sample() and add more info
-					mcmcStep.newLogLike = tree.getLogLike();
+					mcmcStep.newLogLike = getTree().getLogLike();
 					mcmcStep.burnIn = burnin;
 					postprocMan.newStep(mcmcStep);
 					if (i % mcmcpars.sampRate == 0) {
@@ -277,7 +281,7 @@ public class Mcmc extends Stoppable {
 					// Triggers a /new step/ and a /new peek/ (if appropriate)
 					// of the plugins.
 					if ((isParallel && MPIUtils.isMaster(rank)) || !isParallel) {
-						mcmcStep.newLogLike = tree.getLogLike();
+						mcmcStep.newLogLike = getTree().getLogLike();
 						mcmcStep.burnIn = burnin;
 						postprocMan.newStep(mcmcStep);
 						if (burnIn + i * period + j % mcmcpars.sampRate == 0) {
@@ -364,9 +368,9 @@ public class Mcmc extends Stoppable {
 
 		if (rank == swapA || rank == swapB) {
 			double[] myStateInfo = new double[3];
-			myStateInfo[0] = tree.getLogLike();
-			myStateInfo[1] = tree.getLogPrior();
-			myStateInfo[2] = tree.heat;
+			myStateInfo[0] = getTree().getLogLike();
+			myStateInfo[1] = getTree().getLogPrior();
+			myStateInfo[2] = heat;
 
 			double[] partnerStateInfo = new double[3];
 
@@ -388,7 +392,7 @@ public class Mcmc extends Stoppable {
 
 			System.out
 			.printf("[Worker %d] Heat: [%f] - Sent: [%f,%f,%f] - Recv: [%f,%f,%f]\n",
-					rank, tree.heat, myStateInfo[0], myStateInfo[1],
+					rank, heat, myStateInfo[0], myStateInfo[1],
 					myStateInfo[2], partnerStateInfo[0],
 					partnerStateInfo[1], partnerStateInfo[2]);
 
@@ -413,7 +417,7 @@ public class Mcmc extends Stoppable {
 				MPIUtils.println(rank,
 						"Just swapped heat with my partner. New heat: "
 								+ hisTemp);
-				tree.heat = hisTemp;
+				heat = hisTemp;
 			}
 
 			// MPI.COMM_WORLD.Send(myStateInfo, 0, 3, MPI.DOUBLE,
@@ -450,14 +454,15 @@ public class Mcmc extends Stoppable {
 		if (samplingMethod == 0) {
 			long timer;
 			stoppable();
-			switch (tree.substitutionModel.params != null
-					&& tree.substitutionModel.params.length > 0 ? Utils
+			switch (getTree().getSubstitutionModel().params != null
+					&& getTree().getSubstitutionModel().params.length > 0 ? Utils
 							.weightedChoose(FIVECHOOSE) : Utils
 							.weightedChoose(FOURCHOOSE)) {
 							case 0:
 								if(Utils.DEBUG)
 									timer = -System.currentTimeMillis();
-								sampleEdge();
+                                edgeSampled++;
+								edgeAccepted += strategy.sampleEdge() ? 1 : 0;
 								if(Utils.DEBUG) {
 									timer += System.currentTimeMillis();
 									edge.addData(timer);
@@ -466,7 +471,8 @@ public class Mcmc extends Stoppable {
 							case 1:
 								if(Utils.DEBUG)
 									timer = -System.currentTimeMillis();
-								sampleTopology();
+                                topologySampled++;
+								topologyAccepted += strategy.sampleTopology() ? 1 : 0;
 								if(Utils.DEBUG) {
 									timer += System.currentTimeMillis();
 									top.addData(timer);
@@ -475,7 +481,8 @@ public class Mcmc extends Stoppable {
 							case 2:
 								if(Utils.DEBUG)
 									timer = -System.currentTimeMillis();
-								sampleIndelParameter();
+                                indelSampled++;
+								indelAccepted += strategy.sampleIndelParameter() ? 1 : 0;
 								if(Utils.DEBUG) {
 									timer += System.currentTimeMillis();
 									ind.addData(timer);
@@ -484,7 +491,8 @@ public class Mcmc extends Stoppable {
 							case 3:
 								if(Utils.DEBUG)
 									timer = -System.currentTimeMillis();
-								sampleAlignment();
+                                alignmentSampled++;
+								alignmentAccepted += strategy.sampleAlignment() ? 1 : 0;
 								if(Utils.DEBUG) {
 									timer += System.currentTimeMillis();
 									ali.addData(timer);
@@ -493,7 +501,8 @@ public class Mcmc extends Stoppable {
 							case 4:
 								if(Utils.DEBUG)
 									timer = -System.currentTimeMillis();
-								sampleSubstParameter();
+                                substSampled++;
+								substAccepted += strategy.sampleSubstParameter() ? 1 : 0;
 								if(Utils.DEBUG) {
 									timer += System.currentTimeMillis();
 									sub.addData(timer);
@@ -502,69 +511,12 @@ public class Mcmc extends Stoppable {
 			}
 		} else {
 			stoppable();
-			sampleEdge();
-			sampleTopology();
-			sampleIndelParameter();
-			sampleSubstParameter();
-			sampleAlignment();
+			strategy.sampleEdge();
+            strategy.sampleTopology();
+            strategy.sampleIndelParameter();
+            strategy.sampleSubstParameter();
+            strategy.sampleAlignment();
 		}
-	}
-
-	private void sampleEdge() {
-
-	}
-
-	// this is the old
-	/*
-	 * private void sampleTopology(){ int vnum = tree.vertex.length;
-	 * 
-	 * if(vnum <= 3) return;
-	 * 
-	 * System.out.print("Topology: "); double oldLogLi = tree.getLogLike();
-	 * 
-	 * int vertId, rnd = Utils.generator.nextInt(vnum-3); vertId =
-	 * tree.getTopVertexId(rnd); if(vertId != -1) { int lastId[] = new int[3],
-	 * num = 0, newId = vertId;
-	 * 
-	 * for(int i = vnum-3; i < vnum; i++) { int id = tree.getTopVertexId(i);
-	 * if(id == -1) lastId[num++] = i; else if(id < vertId) newId--; } rnd =
-	 * lastId[newId]; } Vertex nephew = tree.vertex[rnd]; Vertex uncle =
-	 * nephew.parent.brother();
-	 * 
-	 * // for(vertId = 0; vertId < vnum; vertId++) { //
-	 * if(tree.getTopVertexId(vertId) == -1) { // vertex eligible // if(rnd-- ==
-	 * 0) // break; // } // } // Vertex nephew = tree.vertex[vertId];
-	 * 
-	 * double bpp = nephew.swapWithUncle();
-	 * 
-	 * double newLogLi = tree.getLogLike();
-	 * 
-	 * // tree.root.calcFelsRecursivelyWithCheck();
-	 * //tree.root.calcIndelRecursivelyWithCheck();
-	 * 
-	 * if(Math.log(Utils.generator.nextDouble()) < bpp+newLogLi-oldLogLi) { //
-	 * accepted
-	 * System.out.println("accepted (old: "+oldLogLi+" new: "+newLogLi+")"); }
-	 * else { // refused uncle.swapBackUncle();
-	 * System.out.println("rejected (old: "+oldLogLi+" new: "+newLogLi+")"); }
-	 * 
-	 * //tree.root.calcFelsRecursivelyWithCheck();
-	 * //tree.root.calcIndelRecursivelyWithCheck(); }
-	 */
-	private void sampleTopology() {
-
-	}
-
-	private void sampleIndelParameter() {
-
-	}
-
-	private void sampleSubstParameter() {
-
-	}
-
-	private void sampleAlignment() {
-
 	}
 
 	/**
@@ -591,35 +543,33 @@ public class Mcmc extends Stoppable {
 	 * plugins.
 	 */
 	public State getState() {
-		return tree.getState();
+		return getTree().getState();
 	}
 
 	private boolean isColdChain() {
-		return tree.heat == 1.0d;
+		return heat == 1.0d;
 	}
 
 	private State MPIStateReceieve(int peer) {
-		// Creates a new, uninitialized state and initializes the variables.
-		State state = new State(tree.vertex.length);
+        int tag = 0;
 
-		// We already know the names
-		for (int i = 0; i < state.nl; i++) {
-			state.name[i] = tree.vertex[i].name;
-		}
+        int nn = 0, nl = 0;
+        MPI.COMM_WORLD.Recv(nn, 0, 1, MPI.INT, peer, tag++);
+        MPI.COMM_WORLD.Recv(nl, 0, 1, MPI.INT, peer, tag++);
 
-		int nn = state.nn;
-		int tag = 0;
+        // Creates a new, uninitialized state and initializes the variables.
+        State state = new State(nn, nl);
 
-        // TODO: Consider this!
+        // Set the names
+        int[] nameLengths = new int[nn];
+        for (int i = 0; i < nn; i++) {
+            char[] name = new char[nameLengths[i]];
+            MPI.COMM_WORLD.Recv(name, 0, nameLengths[i], MPI.CHAR, peer, tag++);
+            state.name[i] = new String(name);
+        }
+
         for (int i = 0; i < nn; i++)
             MPI.COMM_WORLD.Recv(state.children[i], 0, state.children[i].length, MPI.INT, peer, tag++);
-
-        /*
-		// left
-		MPI.COMM_WORLD.Recv(state.left, 0, nn, MPI.INT, peer, tag++);
-		// right
-		MPI.COMM_WORLD.Recv(state.right, 0, nn, MPI.INT, peer, tag++);
-		*/
 
 		// parent
 		MPI.COMM_WORLD.Recv(state.parent, 0, nn, MPI.INT, peer, tag++);
@@ -652,7 +602,7 @@ public class Mcmc extends Stoppable {
 				MPI.DOUBLE, peer, tag++);
 
 		// substParams
-		int l = tree.substitutionModel.params.length;
+		int l = getTree().getSubstitutionModel().params.length;
 		state.substParams = new double[l];
 		MPI.COMM_WORLD.Recv(state.substParams, 0, l, MPI.DOUBLE, peer, tag++);
 
@@ -677,17 +627,24 @@ public class Mcmc extends Stoppable {
 		int nn = state.nn;
 		int tag = 0;
 
+        MPI.COMM_WORLD.Send(state.nn, 0, 1, MPI.INT, 0, tag++);
+        MPI.COMM_WORLD.Send(state.nl, 0, 1, MPI.INT, 0, tag++);
+
+        int[] nameLength = new int[nn];
+        char[][] nameChars = new char[nn][];
+        for (int i = 0; i < nn; i++) {
+            nameLength[i] = state.name[i].length();
+            nameChars[i] = state.name[i].toCharArray();
+        }
+
+        MPI.COMM_WORLD.Send(nameLength, 0, nn, MPI.INT, 0, tag++);
+        for (int i = 0; i < nn; i++) {
+            MPI.COMM_WORLD.Send(nameChars, 0, nameChars.length, MPI.CHAR, 0, tag++);
+        }
+
         // TODO: Consider this!
         for (int i = 0; i < nn; i++)
             MPI.COMM_WORLD.Send(state.children[i], 0, state.children[i].length, MPI.INT, 0, tag++);
-
-        /*
-		// left
-		MPI.COMM_WORLD.Send(state.left, 0, nn, MPI.INT, 0, tag++);
-		// right
-		MPI.COMM_WORLD.Send(state.right, 0, nn, MPI.INT, 0, tag++);
-		*/
-
 
 		// parent
 		MPI.COMM_WORLD.Send(state.parent, 0, nn, MPI.INT, 0, tag++);
@@ -780,10 +737,11 @@ public class Mcmc extends Stoppable {
 			if ((isParallel && MPIUtils.isMaster(rank)) || !isParallel) {
 				postprocMan.logFile.write(getInfoString() + "\n");
 				postprocMan.logFile.write("Report\tLogLikelihood\t"
-						+ (tree.root.orphanLogLike + tree.root.indelLogLike)
-						+ "\tR\t" + tree.hmm2.params[0] + "\tLamda\t"
-						+ tree.hmm2.params[1] + "\tMu\t" + tree.hmm2.params[2]
-								+ "\t" + tree.substitutionModel.print() + "\n");
+						// + (tree.root.orphanLogLike + tree.root.indelLogLike)
+                        + getTree().getLogLike()
+						+ "\tR\t" + getTree().getR() + "\tLamda\t"
+						+ getTree().getLambda() + "\tMu\t" + getTree().getMu()
+								+ "\t" + getTree().getSubstitutionModel().print() + "\n");
 				if (isParallel) {
 					postprocMan.logFile.write("Cold chain location: " + coldChainLocation + "\n");
 				}
@@ -809,6 +767,10 @@ public class Mcmc extends Stoppable {
 		// substAccepted = 0;
 
 	}
+
+    public ITree getTree() {
+        return strategy.getTree();
+    }
 
 
 
