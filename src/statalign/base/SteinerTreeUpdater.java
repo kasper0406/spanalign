@@ -35,4 +35,51 @@ public class SteinerTreeUpdater implements ITreeUpdater<Tree> {
         }
         tree.root.calcFelsRecursively();
     }
+
+    public class NNIResult {
+        double bpp;
+        Vertex nephew;
+        Vertex uncle;
+
+        public NNIResult(double bpp, Vertex nephew, Vertex uncle) {
+            this.bpp = bpp;
+            this.nephew = nephew;
+            this.uncle = uncle;
+        }
+    }
+
+    public NNIResult performNNI(Tree tree) {
+        int vnum = tree.vertex.length;
+
+        if (vnum <= 3)
+            return new NNIResult(Double.NEGATIVE_INFINITY, null, null);
+
+        int vertId, rnd = Utils.generator.nextInt(vnum - 3);
+        vertId = tree.getTopVertexId(rnd);
+        if (vertId != -1) {
+            int lastId[] = new int[3], num = 0, newId = vertId;
+
+            for (int i = vnum - 3; i < vnum; i++) {
+                int id = tree.getTopVertexId(i);
+                if (id == -1)
+                    lastId[num++] = i;
+                else if (id < vertId)
+                    newId--;
+            }
+            rnd = lastId[newId];
+        }
+        Vertex nephew = tree.vertex[rnd];
+        Vertex uncle = nephew.parent.brother();
+
+        double bpp = nephew.fastSwapWithUncle();
+
+        return new NNIResult(bpp, nephew, uncle);
+    }
+
+    public void revertNNI(Tree tree, NNIResult nni) {
+        if (nni.bpp == Double.NEGATIVE_INFINITY)
+            return;
+
+        nni.uncle.fastSwapBackUncle();
+    }
 }

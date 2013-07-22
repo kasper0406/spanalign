@@ -13,7 +13,7 @@ import java.io.*;
 import java.util.*;
 
 public class SpannoidViewer extends Postprocess {
-    private JPanel panel;
+    private JPanel panel = new SpannoidViewerGUI();
 
     @Override
     public String getTabName() {
@@ -27,7 +27,6 @@ public class SpannoidViewer extends Postprocess {
 
     @Override
     public JPanel getJPanel() {
-        panel = new SpannoidViewerGUI();
         displayImage();
         return panel;
     }

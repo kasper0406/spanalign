@@ -55,6 +55,10 @@ public class DiagnosticsView extends Postprocess {
         private int substSamples = 0;
         private double substRatio = Double.NaN;
 
+        private double R = Double.NaN;
+        private double lambda = Double.NaN;
+        private double mu = Double.NaN;
+
         @Override
         public void paintComponent(Graphics g) {
             Graphics2D graphics = (Graphics2D) g;
@@ -80,6 +84,19 @@ public class DiagnosticsView extends Postprocess {
             drawInfoLine(graphics, "Topology", 230, topologyRatio, topologySamples);
             drawInfoLine(graphics, "Indel", 260, indelRatio, indelSamples);
             drawInfoLine(graphics, "Subst", 290, substRatio, substSamples);
+
+            graphics.setFont(titleFont);
+            graphics.drawString("Model parameters", 10, 360);
+
+            graphics.setFont(textFont);
+            graphics.drawString("R:", 10, 390);
+            graphics.drawString("" + R, 100, 390);
+
+            graphics.drawString("λ:", 10, 420);
+            graphics.drawString("" + lambda, 100, 420);
+
+            graphics.drawString("μ:", 10, 450);
+            graphics.drawString("" + mu, 100, 450);
         }
 
         private void drawInfoLine(Graphics2D graphics, String text, int y, double ratio, int total) {
@@ -105,6 +122,10 @@ public class DiagnosticsView extends Postprocess {
 
             substSamples = mcmc.substSampled;
             substRatio = (double) mcmc.substAccepted / mcmc.substSampled;
+
+            R = state.indelParams[0];
+            lambda = state.indelParams[1];
+            mu = state.indelParams[2];
         }
     }
 }

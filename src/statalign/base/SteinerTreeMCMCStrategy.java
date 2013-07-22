@@ -25,51 +25,14 @@ public class SteinerTreeMCMCStrategy extends AbstractTreeMCMCStrategy<Tree, Stei
         // System.out.print("Topology: ");
         // tree.printAllPointers();
         double oldLogLi = tree.getLogLike();
-
-        int vertId, rnd = Utils.generator.nextInt(vnum - 3);
-        vertId = tree.getTopVertexId(rnd);
-        if (vertId != -1) {
-            int lastId[] = new int[3], num = 0, newId = vertId;
-
-            for (int i = vnum - 3; i < vnum; i++) {
-                int id = tree.getTopVertexId(i);
-                if (id == -1)
-                    lastId[num++] = i;
-                else if (id < vertId)
-                    newId--;
-            }
-            rnd = lastId[newId];
-        }
-        Vertex nephew = tree.vertex[rnd];
-        Vertex uncle = nephew.parent.brother();
-
-        // for(vertId = 0; vertId < vnum; vertId++) {
-        // if(tree.getTopVertexId(vertId) == -1) { // vertex eligible
-        // if(rnd-- == 0)
-        // break;
-        // }
-        // }
-        // Vertex nephew = tree.vertex[vertId];
-
-        // String[] s = tree.root.printedMultipleAlignment();
-        // System.out.println("Alignment before topology changing: ");
-        // for(int i = 0; i < s.length; i++){
-        // System.out.println(s[i]);
-        // }
-        double bpp = nephew.fastSwapWithUncle();
-        // double bpp = nephew.swapWithUncle();
-        // s = tree.root.printedMultipleAlignment();
-        // System.out.println("Alignment after topology changing: ");
-        // for(int i = 0; i < s.length; i++){
-        // System.out.println(s[i]);
-        // }
+        SteinerTreeUpdater.NNIResult nni = updater.performNNI(tree);
 
         double newLogLi = tree.getLogLike();
 
         // tree.root.calcFelsRecursivelyWithCheck();
         // tree.root.calcIndelRecursivelyWithCheck();
 
-        if (Math.log(Utils.generator.nextDouble()) < bpp
+        if (Math.log(Utils.generator.nextDouble()) < nni.bpp
                 + (newLogLi - oldLogLi) * tree.heat) {
             // accepted
             // System.out.println("accepted (old: "+oldLogLi+" new: "+newLogLi+")");
@@ -108,7 +71,7 @@ public class SteinerTreeMCMCStrategy extends AbstractTreeMCMCStrategy<Tree, Stei
                 }
             }
 
-            uncle.fastSwapBackUncle();
+            updater.revertNNI(tree, nni);
 
             if(Utils.DEBUG) {
                 // Checking pointer integrity after changing back topology
