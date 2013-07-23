@@ -5,8 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 
 import statalign.base.hmm.Hmm2;
 import statalign.base.hmm.HmmNonParam;
@@ -44,13 +43,15 @@ public class Tree extends Stoppable implements ITree {
      */
     public HmmSilent hmm3;
     /** The array of vertices of the tree. */
-    public Vertex vertex[];
+    //public Vertex vertex[];
+    public List<Vertex> vertex = new ArrayList<Vertex>();
 
     /** The root of the tree */
     public Vertex root;
 
     /** The name of the sequences */
-    public String[] names;
+    // public String[] names;
+    public List<String> names = new ArrayList<String>();
 
     static final int GAPOPEN = 9;
     static final int GAPEXT = 2;
@@ -93,14 +94,13 @@ public class Tree extends Stoppable implements ITree {
             bf.readLine();                    // skip `Alignment' header
             root = t.root;
             vertex = t.vertex;
-            for (int i = 0; i < vertex.length; i++) {
-                vertex[i].owner = this;
-            }
-            for (int i = 0; i < vertex.length; i++) {
-                vertex[i].edgeChangeUpdate();
-            }
+            for (Vertex v : vertex)
+                v.owner = this;
+            for (Vertex v : vertex)
+                v.edgeChangeUpdate();
+
             // reading the alignment
-            String[] alignment = new String[vertex.length];
+            String[] alignment = new String[vertex.size()];
             for (int i = 0; i < alignment.length; i++) {
                 alignment[i] = bf.readLine().replaceFirst("\\w+\t", "");
             }
@@ -206,15 +206,11 @@ public class Tree extends Stoppable implements ITree {
             root.calcIndelLikeRecursively();
             //System.out.println("Log-likelihood: "+getLogLike());
 
-            names = new String[(vertex.length + 1) / 2];
-            int index = 0;
-            for (int i = 0; i < vertex.length; i++) {
-                if (vertex[i].left == null) {
-                    names[index] = vertex[i].name;
-                    index++;
-                }
+            names = new ArrayList<String>((vertex.size() + 1) / 2);
+            for (Vertex v : vertex) {
+                if (v.left == null)
+                    names.add(v.name);
             }
-
         } catch (IOException e) {
         }
     }
@@ -240,7 +236,7 @@ public class Tree extends Stoppable implements ITree {
                 numberofnodes++;
             }
         }
-        vertex = new Vertex[numberofnodes];
+        vertex = new ArrayList<Vertex>(Collections.<Vertex>nCopies(numberofnodes, null));
         root = new Vertex();
         root.old = new Vertex();
 
@@ -281,7 +277,7 @@ public class Tree extends Stoppable implements ITree {
         int actualNumber = numberofnodes - 1;
         Vertex actualVertex = root;
         root.selected = false;
-        vertex[numberofnodes - 1] = root;
+        vertex.set(numberofnodes - 1, root);
         while (actualNumber != 0) {
             //    System.out.println(" we are in the root of: "+actualVertex.print()+" it is selected: "+actualVertex.selected+
             //		       " actualNumber: "+actualNumber);
@@ -294,21 +290,18 @@ public class Tree extends Stoppable implements ITree {
             } else {
                 actualVertex = (actualVertex.selected ? actualVertex.right : actualVertex.left);
                 actualNumber--;
-                vertex[actualNumber] = actualVertex;
+                vertex.set(actualNumber, actualVertex);
                 actualVertex.selected = false;
             }
         }
 
-        names = new String[(vertex.length + 1) / 2];
-        int index = 0;
-        for (int i = 0; i < vertex.length; i++) {
-            if (vertex[i].left == null) {
-                names[index] = vertex[i].name;
-                index++;
-            }
+        names = new ArrayList<String>((vertex.size() + 1) / 2);
+        for (Vertex v : vertex) {
+            if (v.left == null)
+                names.add(v.name);
         }
-
     }
+
 
     /**
      * This constructor generates a tree and puts aligned sequences onto it.
@@ -327,7 +320,7 @@ public class Tree extends Stoppable implements ITree {
      *                  the tree, appearing in the graphical interface showing multiple alignments.
      */
     public Tree(String[] sequences, String[] names, SubstitutionModel model, SubstitutionScore ss) throws StoppedException {
-        this.names = names;
+        this.names = Arrays.asList(names);
         substitutionModel = model;
         hmm2 = new HmmTkf92(null);
         hmm3 = new HmmNonParam();
@@ -412,7 +405,7 @@ public class Tree extends Stoppable implements ITree {
 
         //// Neighbor Joining algorithm based on the distances calculated above
         // initialization
-        vertex = new Vertex[2 * seq.length - 1];
+        vertex = new ArrayList<Vertex>(Collections.<Vertex>nCopies(2 * seq.length - 1, null));
 //                  for (int i = 0; i < vertex.length; i++) {
 //            vertex[i] = new Vertex();
 //        }
@@ -429,7 +422,7 @@ public class Tree extends Stoppable implements ITree {
                 }
                 // the first n vertices will be the leaves
                 for (int i = 0; i < seq.length; i++) {
-                    vertex[i] = new Vertex(this, 0.0, seq[i], names[i], sequences[i]);
+                    vertex.set(i, new Vertex(this, 0.0, seq[i], names[i], sequences[i]));
                 }
                 // NJ main recursion
                 int vnum = seq.length;
@@ -450,9 +443,9 @@ public class Tree extends Stoppable implements ITree {
                         }
                     }
                     newVert = new Vertex(this, 0.0);    /* new vertex */
-                    vertex[vnum] = newVert;
-                    newVert.left = vertex[where[i]];
-                    newVert.right = vertex[where[j]];
+                    vertex.set(vnum, newVert);
+                    newVert.left = vertex.get(where[i]);
+                    newVert.right = vertex.get(where[j]);
                     //System.out.println("Joining vertices "+where[i]+" and "+where[j]);
                     newVert.parent = null;
                     newVert.left.parent = newVert.right.parent = newVert;
@@ -552,7 +545,7 @@ public class Tree extends Stoppable implements ITree {
             where[i] = vnum;
             vnum++;
         }
-        root = vertex[vnum - 1];
+        root = vertex.get(vnum - 1);
         root.calcOrphan();
         root.calcFelsRecursively();
         /////////////
@@ -570,13 +563,13 @@ public class Tree extends Stoppable implements ITree {
 
 
     int getTopVertexId(int ind) {
-        if (root == vertex[ind]) {
+        if (root == vertex.get(ind)) {
             return 0;
         }
-        if (root.left == vertex[ind]) {
+        if (root.left == vertex.get(ind)) {
             return 1;
         }
-        if (root.right == vertex[ind]) {
+        if (root.right == vertex.get(ind)) {
             return 2;
         }
         return -1;
@@ -587,19 +580,19 @@ public class Tree extends Stoppable implements ITree {
      * leaves come first in the {@link #vertex} array.
      */
 	public State getState() {
-		int nn = vertex.length;
+		int nn = vertex.size();
 		int nl = (nn+1)/2;
 		State state = new State(nn);
 		
 		int i;
 		HashMap<Vertex, Integer> lookup = new HashMap<Vertex, Integer>();
 		for(i = 0; i < nn; i++)
-			lookup.put(vertex[i], i);
+			lookup.put(vertex.get(i), i);
 		
 		Vertex v;
 		state.root = lookup.get(root);
 		for(i = 0; i < nn; i++) {
-			v = vertex[i];
+			v = vertex.get(i);
 
             ArrayList<Integer> children = new ArrayList<Integer>(2);
             if (v.left != null)
@@ -621,7 +614,7 @@ public class Tree extends Stoppable implements ITree {
 			state.seq[i] = v.sequence();
 		}
 		for(i = 0; i < nl; i++)
-			state.name[i] = vertex[i].name;
+			state.name[i] = vertex.get(i).name;
 		
 		state.indelParams = hmm2.params.clone();
 		state.substParams = substitutionModel.params.clone();
@@ -715,9 +708,9 @@ public class Tree extends Stoppable implements ITree {
      */
     public String rowSequences() {
         String s = "";
-        for (int i = 0; i < vertex.length; i++) {
-            if (vertex[i].left == null) {
-                s += vertex[i].name + "\t" + vertex[i].sequence() + "\n";
+        for (Vertex v : vertex) {
+            if (v.left == null) {
+                s += v.name + "\t" + v.sequence() + "\n";
             }
         }
         return s;
@@ -747,8 +740,8 @@ public class Tree extends Stoppable implements ITree {
      * @param taxonName Taxon on which to root tree 
      */ 
     public void makeRoot(String taxonName){ 
-        if(vertex.length>0){ 
-                Vertex taxon = vertex[0]; 
+        if(vertex.size() > 0){
+                Vertex taxon = vertex.get(0);
                 for(Vertex currentNode : vertex){ 
                         if(currentNode.name == taxonName){ 
                                 taxon = currentNode; 

@@ -86,7 +86,8 @@ public class SpannoidViewer extends Postprocess {
 
             if (current.parent != null) {
                 int parentId = lookup.get(current.parent);
-                out.write("\"N"+ parentId +"\" -- \"N"+ currentId +"\" [label=\"" + current.edgeLength + "\"];\n");
+                String edgeLen = String.format("%.2f", current.edgeLength);
+                out.write("\"N"+ parentId +"\" -- \"N"+ currentId +"\" [label=\"" + edgeLen + "\"];\n");
             }
 
             for (TreeNode child : current.children)

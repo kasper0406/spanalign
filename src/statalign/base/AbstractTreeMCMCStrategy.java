@@ -159,23 +159,22 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
      */
     protected boolean sampleAlignment(Tree tree)
     {
-        for (int i = 0; i < tree.vertex.length; i++) {
-            tree.vertex[i].selected = false;
-        }
+        for (Vertex v : tree.vertex)
+            v.selected = false;
         // System.out.print("Alignment: ");
         double oldLogLi = tree.getLogLike();
         // System.out.println("fast indel before: "+tree.root.indelLogLike);
         tree.countLeaves(); // calculates recursively how many leaves we have
         // below this node
 
-        double[] weights = new double[tree.vertex.length];
+        double[] weights = new double[tree.vertex.size()];
         for (int i = 0; i < weights.length; i++) {
-            weights[i] = Math.pow(tree.vertex[i].leafCount, LEAFCOUNT_POWER);
+            weights[i] = Math.pow(tree.vertex.get(i).leafCount, LEAFCOUNT_POWER);
         }
         int k = Utils.weightedChoose(weights, null);
         // System.out.println("Sampling from the subtree: "+tree.vertex[k].print());
-        tree.vertex[k].selectSubtree(SELTRLEVPROB, 0);
-        double bpp = tree.vertex[k].selectAndResampleAlignment();
+        tree.vertex.get(k).selectSubtree(SELTRLEVPROB, 0);
+        double bpp = tree.vertex.get(k).selectAndResampleAlignment();
         double newLogLi = tree.getLogLike();
 
         // String[] printedAlignment = tree.printedAlignment("StatAlign");
@@ -205,7 +204,7 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
         } else {
             // refused
             // String[] s = tree.printedAlignment();
-            tree.vertex[k].alignRestore();
+            tree.vertex.get(k).alignRestore();
             // s = tree.printedAlignment();
             // System.out.println("rejected (old: "+oldLogLi+" new: "+newLogLi+")");
             // System.out.println("after reject fast: "+tree.root.indelLogLike);

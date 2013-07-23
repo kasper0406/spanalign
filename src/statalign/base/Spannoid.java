@@ -259,8 +259,8 @@ public class Spannoid extends Stoppable implements ITree {
             treeNodeToVertex.put(current, newVertex);
         }
 
-        tree.vertex = new Vertex[leafVertices.size() + internalVertices.size()];
-        tree.names = new String[leafVertices.size()];
+        tree.vertex = new ArrayList<Vertex>(Collections.<Vertex>nCopies(leafVertices.size() + internalVertices.size(), null));
+        tree.names = new ArrayList<String>(Collections.<String>nCopies(leafVertices.size(), null));
         int i = 0;
         for (Vertex vertex : leafVertices) {
             // Do full alignment!
@@ -269,8 +269,8 @@ public class Spannoid extends Stoppable implements ITree {
             // Ensure transition matrices are updated
             vertex.edgeChangeUpdate();
 
-            tree.names[i] = vertex.name;
-            tree.vertex[i] = vertex;
+            tree.names.set(i, vertex.name);
+            tree.vertex.set(i, vertex);
             i++;
         }
 
@@ -283,7 +283,7 @@ public class Spannoid extends Stoppable implements ITree {
             // Ensure transition matrices are updated
             vertex.edgeChangeUpdate();
 
-            tree.vertex[i++] = vertex;
+            tree.vertex.set(i++, vertex);
 
             // Add empty alignment column to internal nodes, and set 
             makeFakeAlignmentColumn(vertex);
@@ -461,7 +461,7 @@ public class Spannoid extends Stoppable implements ITree {
 
     public State getState() {
         Tree firstComponent = components.iterator().next();
-        final Vertex rootVertex = firstComponent.vertex[0];
+        final Vertex rootVertex = firstComponent.vertex.get(0);
 
         int nodes = countNodes() - components.size() + 1;
         State state = new State(nodes);
@@ -610,7 +610,7 @@ public class Spannoid extends Stoppable implements ITree {
     private int countNodes() {
         int nodes = 0;
         for (Tree component : components)
-            nodes += component.vertex.length;
+            nodes += component.vertex.size();
         return nodes;
     }
 
@@ -702,8 +702,8 @@ public class Spannoid extends Stoppable implements ITree {
 
         public Vertex getRandomVertex(Spannoid spannoid) {
             Tree component = getRandomComponent(spannoid);
-            int j = Utils.generator.nextInt(component.vertex.length);
-            return component.vertex[j];
+            int j = Utils.generator.nextInt(component.vertex.size());
+            return component.vertex.get(j);
         }
     }
 }

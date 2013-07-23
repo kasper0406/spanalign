@@ -7,9 +7,8 @@ public class SteinerTreeUpdater implements ITreeUpdater<Tree> {
         tree.hmm2.params[1] = newLambda;
         tree.hmm2.params[2] = newMu;
 
-        for (int i = 0; i < tree.vertex.length; i++) {
-            tree.vertex[i].updateHmmMatrices();
-        }
+        for (Vertex v : tree.vertex)
+            v.updateHmmMatrices();
         tree.root.calcIndelLikeRecursively();
     }
 
@@ -30,9 +29,8 @@ public class SteinerTreeUpdater implements ITreeUpdater<Tree> {
 
     @Override
     public void recalcSubstitutionParameters(Tree tree) {
-        for (int i = 0; i < tree.vertex.length; i++) {
-            tree.vertex[i].updateTransitionMatrix();
-        }
+        for (Vertex v : tree.vertex)
+            v.updateTransitionMatrix();
         tree.root.calcFelsRecursively();
     }
 
@@ -49,7 +47,7 @@ public class SteinerTreeUpdater implements ITreeUpdater<Tree> {
     }
 
     public NNIResult performNNI(Tree tree) {
-        int vnum = tree.vertex.length;
+        int vnum = tree.vertex.size();
 
         if (vnum <= 3)
             return new NNIResult(Double.NEGATIVE_INFINITY, null, null);
@@ -68,7 +66,7 @@ public class SteinerTreeUpdater implements ITreeUpdater<Tree> {
             }
             rnd = lastId[newId];
         }
-        Vertex nephew = tree.vertex[rnd];
+        Vertex nephew = tree.vertex.get(rnd);
         Vertex uncle = nephew.parent.brother();
 
         double bpp = nephew.fastSwapWithUncle();

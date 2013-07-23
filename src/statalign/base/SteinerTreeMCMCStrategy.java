@@ -9,14 +9,14 @@ public class SteinerTreeMCMCStrategy extends AbstractTreeMCMCStrategy<Tree, Stei
 
     @Override
     public boolean sampleEdge() {
-        int i = Utils.generator.nextInt(tree.vertex.length - 1);
-        return sampleEdge(tree.vertex[i]);
+        int i = Utils.generator.nextInt(tree.vertex.size());
+        return sampleEdge(tree.vertex.get(i));
     }
 
     @Override
     public boolean sampleTopology() {
         boolean accepted = false;
-        int vnum = tree.vertex.length;
+        int vnum = tree.vertex.size();
 
         if (vnum <= 3)
             return false;
@@ -41,30 +41,30 @@ public class SteinerTreeMCMCStrategy extends AbstractTreeMCMCStrategy<Tree, Stei
             // rejected
             if(Utils.DEBUG) {
                 // Checking pointer integrity before changing back topology
-                for (int i = 0; i < tree.vertex.length; i++) {
-                    if (tree.vertex[i].left != null && tree.vertex[i].right != null) {
-                        tree.vertex[i].checkPointers();
+                for (Vertex v : tree.vertex) {
+                    if (v.left != null && v.right != null) {
+                        v.checkPointers();
                         AlignColumn p;
                         // checking pointer integrity
-                        for (AlignColumn c = tree.vertex[i].left.first; c != null; c = c.next) {
-                            p = tree.vertex[i].first;
+                        for (AlignColumn c = v.left.first; c != null; c = c.next) {
+                            p = v.first;
                             while (c.parent != p && p != null)
                                 p = p.next;
                             if (p == null)
                                 throw new Error(
                                         "children does not have a parent!!!"
-                                                + tree.vertex[i] + " "
-                                                + tree.vertex[i].print());
+                                                + v + " "
+                                                + v.print());
                         }
-                        for (AlignColumn c = tree.vertex[i].right.first; c != null; c = c.next) {
-                            p = tree.vertex[i].first;
+                        for (AlignColumn c = v.right.first; c != null; c = c.next) {
+                            p = v.first;
                             while (c.parent != p && p != null)
                                 p = p.next;
                             if (p == null)
                                 throw new Error(
                                         "children does not have a parent!!!"
-                                                + tree.vertex[i] + " "
-                                                + tree.vertex[i].print());
+                                                + v + " "
+                                                + v.print());
                         }
 
                     }
@@ -75,30 +75,30 @@ public class SteinerTreeMCMCStrategy extends AbstractTreeMCMCStrategy<Tree, Stei
 
             if(Utils.DEBUG) {
                 // Checking pointer integrity after changing back topology
-                for (int i = 0; i < tree.vertex.length; i++) {
-                    if (tree.vertex[i].left != null && tree.vertex[i].right != null) {
-                        tree.vertex[i].checkPointers();
+                for (Vertex v : tree.vertex) {
+                    if (v.left != null && v.right != null) {
+                        v.checkPointers();
                         AlignColumn p;
                         // checking pointer integrity
-                        for (AlignColumn c = tree.vertex[i].left.first; c != null; c = c.next) {
-                            p = tree.vertex[i].first;
+                        for (AlignColumn c = v.left.first; c != null; c = c.next) {
+                            p = v.first;
                             while (c.parent != p && p != null)
                                 p = p.next;
                             if (p == null)
                                 throw new Error(
                                         "children does not have a parent!!!"
-                                                + tree.vertex[i] + " "
-                                                + tree.vertex[i].print());
+                                                + v + " "
+                                                + v.print());
                         }
-                        for (AlignColumn c = tree.vertex[i].right.first; c != null; c = c.next) {
-                            p = tree.vertex[i].first;
+                        for (AlignColumn c = v.right.first; c != null; c = c.next) {
+                            p = v.first;
                             while (c.parent != p && p != null)
                                 p = p.next;
                             if (p == null)
                                 throw new Error(
                                         "children does not have a parent!!!"
-                                                + tree.vertex[i] + " "
-                                                + tree.vertex[i].print());
+                                                + v + " "
+                                                + v.print());
                         }
                     }
                 }
