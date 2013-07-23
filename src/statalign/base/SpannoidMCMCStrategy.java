@@ -20,7 +20,21 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
     @Override
     public boolean sampleTopology() {
-        return false;
+        int cases = Utils.generator.nextInt(3);
+        switch(cases){
+            case  0:
+                System.out.println("Changing inner component topology");
+                Tree component = updater.getRandomComponent(tree);
+                return sampleTopology(component);
+            case 1:
+                 System.out.println("Changing outer component topology");
+
+
+            default:
+                return false;
+
+                }
+
     }
 
     @Override

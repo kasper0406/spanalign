@@ -21,7 +21,7 @@ public class Spannoid extends Stoppable implements ITree {
     private int n;
     private List<Tree> components = new ArrayList<Tree>();
 
-    private final String BONPHY_PATH = "/Users/kasper0406/Desktop/bonphy/bonphy.py";
+    private final String BONPHY_PATH = "/home/aldo/projects/bonphy/bonphy.py";
 
     private SubstitutionModel substitutionModel;
 
@@ -30,6 +30,12 @@ public class Spannoid extends Stoppable implements ITree {
      */
     private Map<Integer, Set<Vertex>> componentConnections = new HashMap<Integer, Set<Vertex>>();
     private Map<Vertex, Integer> labeledVertexIds = new HashMap<Vertex, Integer>();
+
+    private List<Integer> innerBlackNodes = new ArrayList<Integer>(); /// list with the "" of the internal black nodes
+    /// the purpose of this variable is to access internal black nodes at random and easy.
+
+
+
 
     private double heat = 1.0d;
 
@@ -116,6 +122,7 @@ public class Spannoid extends Stoppable implements ITree {
 
         int[][][] convertedSequences = convertSequences(sequences, model, ss);
         createComponents(root, model, nameMap, convertedSequences, sequences);
+        setupInnerBlackNodes();
     }
 
     private void createComponents(TreeNode node, SubstitutionModel model,
@@ -132,6 +139,21 @@ public class Spannoid extends Stoppable implements ITree {
                 labeledNodesToVisit.addAll(createComponent(current, child, model, nameMap, sequences, originalSequences));
         }
     }
+
+    /// sets up the inner black nodes variable to have the internal black nodes of the tree.
+    public void setupInnerBlackNodes(){
+        innerBlackNodes = new ArrayList<Integer>();
+        /// loop through all the nodes and build the inner black nodes list
+        for (int i = 0; i < n; i++){
+            if(componentConnections.get(i).size() > 1){
+                innerBlackNodes.add(i);
+
+            }
+
+        }
+
+    }
+
 
     /**
      * Create a component.
@@ -627,6 +649,17 @@ public class Spannoid extends Stoppable implements ITree {
             i++;
         }
         */
+
+        for (int i = 0; i < 100; i++){
+            int j = Utils.generator.nextInt(spannoid.n);
+            Set<Vertex> neighborhood  = spannoid.componentConnections.get(j);
+            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]);
+            int k = Utils.generator.nextInt(overlapping_vertices.length);
+            Vertex observed = overlapping_vertices[k];
+            System.out.println(overlapping_vertices.length);
+
+        }
+
     }
 
     public static class SpannoidUpdater implements ITreeUpdater<Spannoid> {
@@ -656,15 +689,57 @@ public class Spannoid extends Stoppable implements ITree {
                 updater.recalcSubstitutionParameters(component);
         }
 
+        // Returns a random spannoid component.
         public Tree getRandomComponent(Spannoid spannoid) {
             int i = Utils.generator.nextInt(spannoid.components.size());
             return spannoid.components.get(i);
         }
 
+        // Returns a random vertex (both Steiner and not)
         public Vertex getRandomVertex(Spannoid spannoid) {
             Tree component = getRandomComponent(spannoid);
             int j = Utils.generator.nextInt(component.vertex.length);
             return component.vertex[j];
         }
+
+        // Returns a random (black) observed sequence vertex
+        public Vertex getRandomBlack(Spannoid spannoid){
+            int j = Utils.generator.nextInt(spannoid.n);
+            Set<Vertex> neighborhood  = spannoid.componentConnections.get(j);
+            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]); /// this could be bad for the performance
+            int k = Utils.generator.nextInt(overlapping_vertices.length);
+            Vertex observed = overlapping_vertices[k];
+            return observed;
+        }
+
+        // TODO: some weighting to achieve a good uniform distribution.
+        // Returns a random (black) observed sequence vertex belonging to
+        // at least 2 spannoid components.
+        public Vertex getRandomInnerBlack(Spannoid spannoid){
+            int j = Utils.generator.nextInt(spannoid.innerBlackNodes.size());
+            Integer index = spannoid.innerBlackNodes.get(j);
+            /// this neighborhood must be of size > 1.
+            Set<Vertex> neighborhood = spannoid.componentConnections.get(index);
+            /// extract a random vertex out of this neighborhood
+            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]); /// this could be bad for the performance
+            int k = Utils.generator.nextInt(overlapping_vertices.length);
+            Vertex observed = overlapping_vertices[k];
+            return observed;
+        }
+
+        /// cut a piece from an inner black and paste it on a generic black.
+        public void cutAndPaste(Spannoid spannoid){
+            Vertex  old_stem = getRandomInnerBlack(spannoid);
+            Tree component = old_stem.owner;
+            Vertex new_stem = getRandomBlack(spannoid);
+            /// TODO: if new_stem = old_stem, break (or repeat until the new stem is different)
+            /// CUT and PASTE
+
+
+
+
+        }
+
+
     }
 }

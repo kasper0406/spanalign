@@ -64,16 +64,20 @@ public class MainThread extends StoppableThread {
 				nongapped[i] = builder.toString();
 			}
 
+
+            /*
 			Tree tree = new Tree(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
 					owner.inputData.model,
 					owner.inputData.model.attachedScoringScheme);
             Mcmc mcmc = new Mcmc(new SteinerTreeMCMCStrategy(tree), owner.inputData.pars, owner.postProcMan);
 
-            /*
+            */
+
+
             Spannoid spannoid = new Spannoid(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
                     owner.inputData.model, owner.inputData.model.attachedScoringScheme);
             Mcmc mcmc = new Mcmc(new SpannoidMCMCStrategy(spannoid), owner.inputData.pars, owner.postProcMan);
-            */
+
 
             /*
             String newick = "((D:0.1,(F:0.1,(E:0.2,C:0.05):0.2)B:0.1):0.2)A;";
