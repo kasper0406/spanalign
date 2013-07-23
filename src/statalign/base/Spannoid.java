@@ -88,7 +88,10 @@ public class Spannoid extends Stoppable implements ITree {
      * Removes all Steiner nodes of degree 2 from the tree.
      */
     private TreeNode shrinkTree(TreeNode node) {
-        if (node.children.size() == 2) {
+        // TODO: This seems overly complicated, since it seems only root node can have the problem.
+        //       Should be made simpler!
+        //       If it turns out we need to do it for all nodes, this should be generalized instead.
+        if (node.children.size() == 2 && node.parent == null) {
             if (node.name != null && !node.name.isEmpty())
                 throw new RuntimeException("Invalid format of component!");
 
