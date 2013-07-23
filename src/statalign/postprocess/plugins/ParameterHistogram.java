@@ -82,10 +82,8 @@ public class ParameterHistogram extends Postprocess {
         OutputStreamWriter writer = null;
         try {
             File outputFile = new File("plots/" + name + ".png");
-            File gnuplotFile = new File("plots/gnuplot.gnuplot");
+            File gnuplotFile = new File("plots/" + name + ".gnuplot");
 
-            //Scanner scanner = new Scanner(gnuplot.getInputStream()).useDelimiter("\\n");
-            //writer = new OutputStreamWriter(gnuplot.getOutputStream());
             writer = new FileWriter(gnuplotFile);
             writer.write(
                     "n=" + n + " #number of intervals\n" +
@@ -96,8 +94,7 @@ public class ParameterHistogram extends Postprocess {
                     "hist(x,width)=width*floor(x/width)+width/2.0\n" +
                     "set term png size 470,300 font \"Helvetica, 10\" #output terminal and file\n" +
                     "set output \"" + outputFile.getAbsolutePath() + "\"\n" +
-                    "#set xrange [min:max]\n" +
-                    "set xrange [0:max]\n" +
+                    "set xrange [min:max]\n" +
                     "set yrange [0:]\n" +
                     "set boxwidth width*0.9\n" +
                     "set style fill solid 0.5 #fillstyle\n" +
@@ -109,9 +106,6 @@ public class ParameterHistogram extends Postprocess {
 
             writer.write(measurements + "e");
             writer.close();
-
-
-            // System.out.println(scanner.next());
 
             Process gnuplot = Runtime.getRuntime().exec("/opt/local/bin/gnuplot " + gnuplotFile.getAbsolutePath());
             gnuplot.waitFor();
