@@ -58,14 +58,14 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
                         || newLambda >= tree.getMu())
                     ;
                 updater.updateLambda(tree, newLambda);
-                newLogLikelihood = tree.getLambda();
+                newLogLikelihood = tree.getLogLike();
                 if (Utils.generator.nextDouble() < Math.exp((newLogLikelihood
                         - oldLogLikelihood - tree.getLambda() + oldLambda)
                         * tree.getHeat())
-                        * (Math.min(Utils.LAMBDA_SPAN / 2.0, tree.getLambda()
+                        * (Math.min(Utils.LAMBDA_SPAN / 2.0, tree.getMu()
                         - oldLambda) + Math.min(oldLambda,
                         Utils.LAMBDA_SPAN / 2.0))
-                        / (Math.min(Utils.LAMBDA_SPAN / 2.0, tree.getLambda()
+                        / (Math.min(Utils.LAMBDA_SPAN / 2.0, tree.getMu()
                         - tree.getLambda()) + Math.min(
                         tree.getLambda(), Utils.LAMBDA_SPAN / 2.0))) {
                     // accept, do nothing
