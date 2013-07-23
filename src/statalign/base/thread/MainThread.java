@@ -64,16 +64,26 @@ public class MainThread extends StoppableThread {
 				nongapped[i] = builder.toString();
 			}
 
-			Tree tree = new Tree(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
-					owner.inputData.model,
-					owner.inputData.model.attachedScoringScheme);
-            Mcmc mcmc = new Mcmc(new SteinerTreeMCMCStrategy(tree), owner.inputData.pars, owner.postProcMan);
+            Mcmc mcmc;
+            switch (owner.inputData.pars.treeType) {
+                case STEINER:
+                    Tree tree = new Tree(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
+                            owner.inputData.model,
+                            owner.inputData.model.attachedScoringScheme);
+                    mcmc = new Mcmc(new SteinerTreeMCMCStrategy(tree), owner.inputData.pars, owner.postProcMan);
+                    break;
 
-            /*
-            Spannoid spannoid = new Spannoid(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
-                    owner.inputData.model, owner.inputData.model.attachedScoringScheme);
-            Mcmc mcmc = new Mcmc(new SpannoidMCMCStrategy(spannoid), owner.inputData.pars, owner.postProcMan);
-            */
+                case SPANNOID:
+                    int componentSize = owner.inputData.pars.componentSize;
+                    Spannoid spannoid = new Spannoid(componentSize, Spannoid.BonphyStrategy.TOTAL_LENGTH, nongapped,
+                            seqs.getSeqnames().toArray(new String[seqs.size()]),
+                            owner.inputData.model, owner.inputData.model.attachedScoringScheme);
+                    mcmc = new Mcmc(new SpannoidMCMCStrategy(spannoid), owner.inputData.pars, owner.postProcMan);
+                    break;
+
+                default:
+                    throw new RuntimeException("Invalid tree topology!");
+            };
 
             /*
             String newick = "((D:0.1,(F:0.1,(E:0.2,C:0.05):0.2)B:0.1):0.2)A;";

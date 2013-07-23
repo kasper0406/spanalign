@@ -25,6 +25,23 @@ public class Spannoid extends Stoppable implements ITree {
 
     private SubstitutionModel substitutionModel;
 
+    // TODO: Add more options
+    public enum BonphyStrategy {
+        TOTAL_LENGTH(1),
+        CONTRACTED(2),
+        INTERNAL_MOVED(3);
+
+        private int bonphyOptimizationNumber;
+
+        private BonphyStrategy(int bonphyOptimizationNumber) {
+            this.bonphyOptimizationNumber = bonphyOptimizationNumber;
+        }
+
+        public String toString() {
+            return Integer.toString(bonphyOptimizationNumber);
+        }
+    };
+
     /*
      * Description...
      */
@@ -33,7 +50,8 @@ public class Spannoid extends Stoppable implements ITree {
 
     private double heat = 1.0d;
 
-    public Spannoid(String[] sequences, String[] names,
+    public Spannoid(int componentSize, BonphyStrategy optimizationStrategy,
+                    String[] sequences, String[] names,
                     SubstitutionModel model, SubstitutionScore ss)
             throws StoppedException, IOException, InterruptedException {
         this.substitutionModel = model;
@@ -48,7 +66,7 @@ public class Spannoid extends Stoppable implements ITree {
         for (int i = 0; i < names.length; i++)
             nameMap.put(names[i], i);
 
-        Process bonphy = Runtime.getRuntime().exec(BONPHY_PATH + " -k3");
+        Process bonphy = Runtime.getRuntime().exec(BONPHY_PATH + " -k" + componentSize + " -s" + optimizationStrategy);
         OutputStreamWriter output = new OutputStreamWriter(bonphy.getOutputStream());
         output.write(njTree);
         output.close();
@@ -589,7 +607,7 @@ public class Spannoid extends Stoppable implements ITree {
         SubstitutionModel model = new Kimura3();
         SubstitutionScore ss = model.attachedScoringScheme;
 
-        Spannoid spannoid = new Spannoid(seqs, names, model, ss);
+        Spannoid spannoid = new Spannoid(3, BonphyStrategy.TOTAL_LENGTH, seqs, names, model, ss);
         System.out.println("Log-like of spannoid: " + spannoid.getLogLike());
 
         /*

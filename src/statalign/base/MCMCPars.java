@@ -1,6 +1,8 @@
 package statalign.base;
 
 
+import statalign.ui.McmcSettingsDlg;
+
 /**
  * 
  * This is a container class containing the MCMC parameters described below.
@@ -9,6 +11,30 @@ package statalign.base;
  *
  */
 public class MCMCPars {
+    public enum TreeType {
+        STEINER("Steiner tree"),
+        SPANNOID("Spannoid");
+
+        private String label;
+        private TreeType(String label) {
+            this.label = label;
+        }
+
+        public String toString() {
+            return label;
+        }
+    };
+
+    /**
+     * Tree topology type
+     */
+    public TreeType treeType;
+
+    /**
+     * Component size restriction when using Spannoids.
+     */
+    public int componentSize;
+
 	/**
 	 * 
 	 * Number of burn-in steps
@@ -53,7 +79,10 @@ public class MCMCPars {
 	 * @param cycles this.cycles is set to this value.
 	 * @param sampRate this.sampRate is set to this value.
 	 */
-	public MCMCPars(int burnIn, int cycles, int sampRate, long seed, long swapSeed, int swapRate, AutomateParamSettings autoParamSettings) {
+	public MCMCPars(TreeType treeType, int componentSize, int burnIn, int cycles, int sampRate,
+                    long seed, long swapSeed, int swapRate, AutomateParamSettings autoParamSettings) {
+        this.treeType = treeType;
+        this.componentSize = componentSize;
 		this.burnIn = burnIn;
 		this.cycles = cycles;
 		this.sampRate = sampRate;

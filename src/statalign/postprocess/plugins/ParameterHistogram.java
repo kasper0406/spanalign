@@ -13,6 +13,13 @@ import java.util.Scanner;
 public class ParameterHistogram extends Postprocess {
     private HistogramGUI gui = new HistogramGUI();
 
+    private double RMax = Double.NEGATIVE_INFINITY;
+    private double RMin = Double.POSITIVE_INFINITY;
+    private double lambdaMax = Double.NEGATIVE_INFINITY;
+    private double lambdaMin = Double.POSITIVE_INFINITY;
+    private double muMax = Double.NEGATIVE_INFINITY;
+    private double muMin = Double.POSITIVE_INFINITY;
+
     private StringBuilder RMeasurements = new StringBuilder();
     private StringBuilder lambdaMeasurements = new StringBuilder();
     private StringBuilder muMeasurements = new StringBuilder();
@@ -49,21 +56,29 @@ public class ParameterHistogram extends Postprocess {
         samples++;
 
         RMeasurements.append(state.indelParams[0] + "\n");
+        RMax = Math.max(RMax, state.indelParams[0]);
+        RMin = Math.min(RMin, state.indelParams[0]);
+
         lambdaMeasurements.append(state.indelParams[1] + "\n");
+        lambdaMax = Math.max(lambdaMax, state.indelParams[1]);
+        lambdaMin = Math.min(lambdaMin, state.indelParams[1]);
+
         muMeasurements.append(state.indelParams[2] + "\n");
+        muMax = Math.max(muMax, state.indelParams[2]);
+        muMin = Math.min(muMin, state.indelParams[2]);
     }
 
     @Override
     public void afterLastSample() {
-        writeAndGenerateHistogram("R", RMeasurements, 50, 1);
-        writeAndGenerateHistogram("lambda", lambdaMeasurements, 50, 0.002);
-        writeAndGenerateHistogram("mu", muMeasurements, 50, 0.002);
+        writeAndGenerateHistogram("R", RMeasurements, 50, RMin, RMax);
+        writeAndGenerateHistogram("lambda", lambdaMeasurements, 50, lambdaMin, lambdaMax);
+        writeAndGenerateHistogram("mu", muMeasurements, 50, muMin, muMax);
 
         gui.setReady();
         gui.repaint();
     }
 
-    private void writeAndGenerateHistogram(String name, StringBuilder measurements, double n, double max) {
+    private void writeAndGenerateHistogram(String name, StringBuilder measurements, double n, double min, double max) {
         OutputStreamWriter writer = null;
         try {
             File outputFile = new File("plots/" + name + ".png");
@@ -75,7 +90,7 @@ public class ParameterHistogram extends Postprocess {
             writer.write(
                     "n=" + n + " #number of intervals\n" +
                     "max="+ max +" #max value\n" +
-                    "min=0. #min value\n" +
+                    "min="+ min +" #min value\n" +
                     "width=(max-min)/n #interval width\n" +
                     "#function used to map a value to the intervals\n" +
                     "hist(x,width)=width*floor(x/width)+width/2.0\n" +
