@@ -9,6 +9,8 @@ import java.net.URLConnection;
 import javax.swing.JOptionPane;
 
 import statalign.base.MainManager;
+import statalign.postprocess.plugins.TreeNode;
+import statalign.postprocess.utils.NewickParser;
 import statalign.ui.ErrorMessage;
 import statalign.ui.MainFrame;
 
@@ -44,7 +46,7 @@ public class StatAlign{
 	 * @throws IOException
 	 */
 	public static void main(String args[]) {
-		
+
 //		for (String s : args) {
 //			System.out.println("args: " + s);
 //		}

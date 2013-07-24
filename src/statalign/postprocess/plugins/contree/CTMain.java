@@ -145,7 +145,7 @@ public class CTMain {
                 partition.or(createPartitions(child)); 
         	}
         	// if this node is NOT to the right side of the root then add it... (Avoid adding splits twice for CNetworks)
-        	if (node.parent != root || root.getRight() != node) { 
+        	// if (node.parent != root) { // || root.getRight() != node) {
                 noOfPartitions++; 
                 long tableKey = 0; 
                 long bucketKey = 0; 
@@ -190,9 +190,9 @@ public class CTMain {
                     } 
                     return partition; 
                 } 
-        	} 
+        	// }
         	// still return the partition even if node was not added as was right of root...
-        	return partition; 
+        	// return partition;
 		} 
 	} 
 	 /**

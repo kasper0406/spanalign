@@ -384,9 +384,9 @@ public class MainFrame extends JFrame implements ActionListener {
         Container cp = getContentPane();
         JPanel mainPanel = new JPanel(new BorderLayout());
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        mainPanel.setMinimumSize(new Dimension(screenSize.width / 3, screenSize.height / 3));
+        mainPanel.setMinimumSize(new Dimension((screenSize.width * 2) / 3, (screenSize.height * 2) / 3));
         mainPanel.setMaximumSize(new Dimension(screenSize.width, screenSize.height));
-        mainPanel.setPreferredSize(new Dimension(screenSize.width / 2, screenSize.height / 2));
+        mainPanel.setPreferredSize(new Dimension((screenSize.width * 2) / 3, (screenSize.height * 2) / 3));
 
         tab = new JTabbedPane();
 
@@ -457,7 +457,8 @@ public class MainFrame extends JFrame implements ActionListener {
 //		setLocationByPlatform(true);
 //    	setLocation(screenSize.width/4,screenSize.height/4);
         pack();
-        setBounds(screenSize.width / 5 - 15, screenSize.height / 5 - 15, screenSize.width * 3 / 5 + 30, screenSize.height * 3 / 5 + 30);
+        // setBounds(screenSize.width / 5 - 15, screenSize.height / 5 - 15, screenSize.width * 3 / 5 + 30, screenSize.height * 3 / 5 + 30);
+        setBounds(screenSize.width / 10, screenSize.height / 7, (screenSize.width * 8) / 10, (screenSize.height * 5) / 7);
         setVisible(true);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
     }

@@ -66,6 +66,9 @@ public class AlignmentGUI extends JPanel{
 	private static boolean allTab(String[] s, int p){
 		boolean b = true;
 		for(int i = 0; i < s.length && b; i++){
+            // TODO: Remove null check. Just for testing.
+            if (s[i] == null) continue;
+
 			b = s[i].charAt(p) == '\t';
 		}
 		return b;

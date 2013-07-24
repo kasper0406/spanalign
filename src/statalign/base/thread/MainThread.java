@@ -1,9 +1,13 @@
 package statalign.base.thread;
 
-import statalign.base.MainManager;
-import statalign.base.Mcmc;
-import statalign.base.Tree;
+import statalign.base.*;
 import statalign.io.RawSequences;
+import statalign.model.score.SubstitutionScore;
+import statalign.model.subst.SubstitutionModel;
+import statalign.model.subst.plugins.Kimura3;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The main (suspendable) thread for background MCMC calculation.
@@ -59,15 +63,53 @@ public class MainThread extends StoppableThread {
 				}
 				nongapped[i] = builder.toString();
 			}
-			
-			Tree tree = new Tree(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]), 	
-					owner.inputData.model,
-					owner.inputData.model.attachedScoringScheme);
-			Mcmc mcmc = new Mcmc(tree, owner.inputData.pars, owner.postProcMan);
+
+            Mcmc mcmc;
+            switch (owner.inputData.pars.treeType) {
+                case STEINER:
+                    Tree tree = new Tree(nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
+                            owner.inputData.model,
+                            owner.inputData.model.attachedScoringScheme);
+                    mcmc = new Mcmc(new SteinerTreeMCMCStrategy(tree), owner.inputData.pars, owner.postProcMan);
+                    break;
+
+                case SPANNOID:
+                    int componentSize = owner.inputData.pars.componentSize;
+                    Spannoid spannoid = new Spannoid(componentSize, Spannoid.BonphyStrategy.TOTAL_LENGTH, nongapped,
+                            seqs.getSeqnames().toArray(new String[seqs.size()]),
+                            owner.inputData.model, owner.inputData.model.attachedScoringScheme);
+                    mcmc = new Mcmc(new SpannoidMCMCStrategy(spannoid), owner.inputData.pars, owner.postProcMan);
+                    break;
+
+                default:
+                    throw new RuntimeException("Invalid tree topology!");
+            };
+
+            /*
+            String newick = "((D:0.1,(F:0.1,(E:0.2,C:0.05):0.2)B:0.1):0.2)A;";
+            String[] my_seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AGACA", "TTGACC", "GTAC" };
+            Map<String, Integer> nameMap = new HashMap<String, Integer>();
+            for (int k = 0; k < my_seqs.length; k++)
+                nameMap.put("" + (char)((int)'A' + k), k);
+
+            ITree tree = new Spannoid(newick, my_seqs, nameMap,
+                    owner.inputData.model, owner.inputData.model.attachedScoringScheme);
+                    */
+
 			int errorCode = mcmc.doMCMC();
+
+            /*
+            // TODO: Remove this
+            //       Hack to print structure before MCMC.
+            owner.postProcMan.beforeFirstSample();
+            // owner.postProcMan.newStep(new McmcStep());
+            owner.postProcMan.newSample(tree.getState(), 0, 0);
+            owner.postProcMan.afterLastSample();
+            */
+
 			owner.postProcMan.finalizeRun();
 			owner.finished(errorCode, null);
-			System.out.println(errorCode == 0 ? "Ready." : "Stopped.");
+			// System.out.println(errorCode == 0 ? "Ready." : "Stopped.");
 		} catch (StoppedException e) {
 			// stopped during initial alignment
 			owner.postProcMan.finalizeRun();

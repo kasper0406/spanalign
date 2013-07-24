@@ -22,12 +22,12 @@ import statalign.postprocess.gui.AlignmentGUI;
 public class CurrentAlignment extends statalign.postprocess.Postprocess{
 
 	public JPanel pan;
-	public String[] allAlignment;
-	public String[] leafAlignment;
+	// public String[] allAlignment;
+	// public String[] leafAlignment;
 	public String title;
 	
 	InputData input;
-	String[] seqNames;
+	// String[] seqNames;
 	
 	AlignmentGUI gui;
 	
@@ -99,19 +99,29 @@ public class CurrentAlignment extends statalign.postprocess.Postprocess{
 		}
 	}
 	
-	private void updateAlignment(State state) {
+	private String[] updateAlignment(State state) {
 		String[] rows = state.getFullAlign();
-		for(int i = 0; i < rows.length; i++)
-			allAlignment[i] = seqNames[i]+'\t'+rows[i];
+        String[] allAlignment = new String[rows.length];
+		for(int i = 0; i < rows.length; i++) {
+            String name = state.name[i];
+            if (name.isEmpty())
+                name = "-";
+            allAlignment[i] = name + '\t' + rows[i];
+        }
+        /*
 		int ind = 0;
-		for(int i = 0; i < allAlignment.length; i++)
-			if(allAlignment[i].charAt(0) != ' ')
+		for(int i = 0; i < allAlignment.length; i++) {
+            // TODO: Fix null check. Inserted for testing.
+            String[] leafAlignment = new String[state.nl];
+			if(allAlignment[i] != null && allAlignment[i].charAt(0) != ' ')
 				leafAlignment[ind++] = allAlignment[i];
+        } */
 		if(show) {
 			gui.alignment = allAlignment;
 			gui.repaint();
 		}
 
+        return allAlignment;
 	}
 
 	/**
@@ -127,23 +137,8 @@ public class CurrentAlignment extends statalign.postprocess.Postprocess{
 			gui.title = input.title;
 			pan.add(scroll, BorderLayout.CENTER);
 		}
-		leafAlignment = new String[input.seqs.size()];
+		// leafAlignment = new String[input.seqs.size()];
 		this.input = input;
-		
-		// seqNames
-		int nl = input.seqs.size();
-		int nn = nl*2-1, i;
-		seqNames = new String[nn];
-		for(i = 0; i < nl; i++)
-			seqNames[i] = input.seqs.getSeqNamePadded(i);
-		StringBuilder b = new StringBuilder();
-		for(int j = 0; j < seqNames[0].length(); j++)
-			b.append(' ');
-		String empty = b.toString();
-		for(; i < nn; i++)
-			seqNames[i] = empty;
-		
-		allAlignment = new String[nn];
 	}
 
 	/**
@@ -154,7 +149,7 @@ public class CurrentAlignment extends statalign.postprocess.Postprocess{
 	@Override
 	public void newSample(State state, int no, int total) {
 		//System.out.println("THIS IS THE CURRENT ALIGNMENT" + state.getFullAlign());
-		updateAlignment(state);
+		String[] allAlignment = updateAlignment(state);
 		
 		if(sampling){
 			try {
@@ -173,6 +168,7 @@ public class CurrentAlignment extends statalign.postprocess.Postprocess{
 	 * Temporary fileprinting method to generate single files containing the current alignment. Used when testing
 	 * the performance of cold and heated chains in mcmcmc.
 	 */
+    /*
 	public void singleFilePrint(int no, int total) {
 		if(sampling){
 			try {
@@ -186,6 +182,7 @@ public class CurrentAlignment extends statalign.postprocess.Postprocess{
 			}
 		}
 	}
+	*/
 	
 	/**
 	 * Toggles sampling mode.

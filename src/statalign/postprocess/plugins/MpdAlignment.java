@@ -28,7 +28,7 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 	AlignmentGUI gui;
 	//private boolean sampling = true;
 
-	CurrentAlignment curAlig;
+	// CurrentAlignment curAlig;
 
 	ColumnNetwork network;
 	Column firstVector, lastVector;
@@ -92,7 +92,7 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 
 	@Override
 	public void refToDependences(Postprocess[] plugins) {
-		curAlig = (CurrentAlignment) plugins[0];
+		// curAlig = (CurrentAlignment) plugins[0];
 	}
 
 	static Comparator<String[]> compStringArr = new Comparator<String[]>() {
@@ -135,11 +135,16 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 	public void newSample(State state, int no, int total) {
 		//System.out.println(curAlig);
 		//System.out.println(curAlig.leafAlignment);
+        String[] leafAlignment = new String[state.nl];
+        String[] rows = state.getLeafAlign();
+        for (int i = 0; i < rows.length; i++)
+            leafAlignment[i] = state.name[i] + '\t' + rows[i];
+
 		for(int i = 0; i < t.length; i++){
-            if (curAlig == null || curAlig.leafAlignment[i] == null) {
+            if (leafAlignment[i] == null) {
                 System.out.println();
             }
-			t[i] = curAlig.leafAlignment[i].split("\t");
+			t[i] = leafAlignment[i].split("\t");
 		}
 		Arrays.sort(t, compStringArr);
 

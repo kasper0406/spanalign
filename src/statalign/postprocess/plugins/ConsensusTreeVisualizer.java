@@ -85,7 +85,7 @@ public class ConsensusTreeVisualizer extends TreeVisualizer {
         }
         main.addNewTree(root);
         CTree output = main.constructMajorityTree();
-        mcmc.tree.network = main.constructNetwork(output); 
+        // mcmc.getTree().network = main.constructNetwork(output);
         TreeNode outputRoot = output.getRoot();
         String outputRootString = outputRoot.toString();
         

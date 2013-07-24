@@ -5,8 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 
 import statalign.base.hmm.Hmm2;
 import statalign.base.hmm.HmmNonParam;
@@ -26,7 +25,7 @@ import statalign.postprocess.plugins.contree.CNetwork;
  * while it calls a function in the Tree class.
  * @author miklos, novak
  */
-public class Tree extends Stoppable {
+public class Tree extends Stoppable implements ITree {
 
     /** Characters on this tree undergo substitutions according to this model. */
     public SubstitutionModel substitutionModel;
@@ -44,13 +43,15 @@ public class Tree extends Stoppable {
      */
     public HmmSilent hmm3;
     /** The array of vertices of the tree. */
-    public Vertex vertex[];
+    //public Vertex vertex[];
+    public List<Vertex> vertex = new ArrayList<Vertex>();
 
     /** The root of the tree */
     public Vertex root;
 
     /** The name of the sequences */
-    public String[] names;
+    // public String[] names;
+    public List<String> names = new ArrayList<String>();
 
     static final int GAPOPEN = 9;
     static final int GAPEXT = 2;
@@ -60,7 +61,7 @@ public class Tree extends Stoppable {
 	public double heat = 1.0d;
 
 	/* TODO: what the fuck? */
-    public CNetwork network; 
+    // public CNetwork network;
 
 
     Tree() {
@@ -93,14 +94,13 @@ public class Tree extends Stoppable {
             bf.readLine();                    // skip `Alignment' header
             root = t.root;
             vertex = t.vertex;
-            for (int i = 0; i < vertex.length; i++) {
-                vertex[i].owner = this;
-            }
-            for (int i = 0; i < vertex.length; i++) {
-                vertex[i].edgeChangeUpdate();
-            }
+            for (Vertex v : vertex)
+                v.owner = this;
+            for (Vertex v : vertex)
+                v.edgeChangeUpdate();
+
             // reading the alignment
-            String[] alignment = new String[vertex.length];
+            String[] alignment = new String[vertex.size()];
             for (int i = 0; i < alignment.length; i++) {
                 alignment[i] = bf.readLine().replaceFirst("\\w+\t", "");
             }
@@ -206,15 +206,11 @@ public class Tree extends Stoppable {
             root.calcIndelLikeRecursively();
             //System.out.println("Log-likelihood: "+getLogLike());
 
-            names = new String[(vertex.length + 1) / 2];
-            int index = 0;
-            for (int i = 0; i < vertex.length; i++) {
-                if (vertex[i].left == null) {
-                    names[index] = vertex[i].name;
-                    index++;
-                }
+            names = new ArrayList<String>((vertex.size() + 1) / 2);
+            for (Vertex v : vertex) {
+                if (v.left == null)
+                    names.add(v.name);
             }
-
         } catch (IOException e) {
         }
     }
@@ -240,7 +236,7 @@ public class Tree extends Stoppable {
                 numberofnodes++;
             }
         }
-        vertex = new Vertex[numberofnodes];
+        vertex = new ArrayList<Vertex>(Collections.<Vertex>nCopies(numberofnodes, null));
         root = new Vertex();
         root.old = new Vertex();
 
@@ -281,7 +277,7 @@ public class Tree extends Stoppable {
         int actualNumber = numberofnodes - 1;
         Vertex actualVertex = root;
         root.selected = false;
-        vertex[numberofnodes - 1] = root;
+        vertex.set(numberofnodes - 1, root);
         while (actualNumber != 0) {
             //    System.out.println(" we are in the root of: "+actualVertex.print()+" it is selected: "+actualVertex.selected+
             //		       " actualNumber: "+actualNumber);
@@ -294,21 +290,18 @@ public class Tree extends Stoppable {
             } else {
                 actualVertex = (actualVertex.selected ? actualVertex.right : actualVertex.left);
                 actualNumber--;
-                vertex[actualNumber] = actualVertex;
+                vertex.set(actualNumber, actualVertex);
                 actualVertex.selected = false;
             }
         }
 
-        names = new String[(vertex.length + 1) / 2];
-        int index = 0;
-        for (int i = 0; i < vertex.length; i++) {
-            if (vertex[i].left == null) {
-                names[index] = vertex[i].name;
-                index++;
-            }
+        names = new ArrayList<String>((vertex.size() + 1) / 2);
+        for (Vertex v : vertex) {
+            if (v.left == null)
+                names.add(v.name);
         }
-
     }
+
 
     /**
      * This constructor generates a tree and puts aligned sequences onto it.
@@ -327,7 +320,7 @@ public class Tree extends Stoppable {
      *                  the tree, appearing in the graphical interface showing multiple alignments.
      */
     public Tree(String[] sequences, String[] names, SubstitutionModel model, SubstitutionScore ss) throws StoppedException {
-        this.names = names;
+        this.names = Arrays.asList(names);
         substitutionModel = model;
         hmm2 = new HmmTkf92(null);
         hmm3 = new HmmNonParam();
@@ -412,70 +405,70 @@ public class Tree extends Stoppable {
 
         //// Neighbor Joining algorithm based on the distances calculated above
         // initialization
-        vertex = new Vertex[2 * seq.length - 1];
-//        for (int i = 0; i < vertex.length; i++) {
+        vertex = new ArrayList<Vertex>(Collections.<Vertex>nCopies(2 * seq.length - 1, null));
+//                  for (int i = 0; i < vertex.length; i++) {
 //            vertex[i] = new Vertex();
 //        }
-        double[] sumDist = new double[dist.length];
-        for (int i = 0; i < dist.length; i++) {
-            sumDist[i] = 0;
-            for (int j = 0; j < dist.length; j++) {
-                sumDist[i] += dist[i][j];
-            }
-        }
-        int[] where = new int[dist.length];
-        for (int i = 0; i < where.length; i++) {
-            where[i] = i;
-        }
-        // the first n vertices will be the leaves
-        for (int i = 0; i < seq.length; i++) {
-            vertex[i] = new Vertex(this, 0.0, seq[i], names[i], sequences[i]);
-        }
-        // NJ main recursion
-        int vnum = seq.length;
-        Vertex newVert;
-        for (int remN = dist.length; remN > 1; remN--) {
-            stoppable();
-            double minVal = BIGNUM;
-            double val = 0.0;
-            int i = -1;
-            int j = -1;
-            for (int k = 1; k < dist.length; k++) {
-                for (int l = 0; l < k; l++) {
-                    if (where[k] > -1 && where[l] > -1 && (val = (remN - 2) * dist[k][l] - sumDist[k] - sumDist[l]) < minVal) {
-                        i = k;
-                        j = l;
-                        minVal = val;
+                double[] sumDist = new double[dist.length];
+                for (int i = 0; i < dist.length; i++) {
+                    sumDist[i] = 0;
+                    for (int j = 0; j < dist.length; j++) {
+                        sumDist[i] += dist[i][j];
                     }
                 }
-            }
-            newVert = new Vertex(this, 0.0);    /* new vertex */
-            vertex[vnum] = newVert;
-            newVert.left = vertex[where[i]];
-            newVert.right = vertex[where[j]];
-            //System.out.println("Joining vertices "+where[i]+" and "+where[j]);
-            newVert.parent = null;
-            newVert.left.parent = newVert.right.parent = newVert;
-            newVert.left.edgeLength = dist[i][j] / 2 - (remN > 2 ? (sumDist[i] - sumDist[j]) / (2 * remN - 4) : 0.001);
-            newVert.right.edgeLength = dist[i][j] - newVert.left.edgeLength;
+                int[] where = new int[dist.length];
+                for (int i = 0; i < where.length; i++) {
+                    where[i] = i;
+                }
+                // the first n vertices will be the leaves
+                for (int i = 0; i < seq.length; i++) {
+                    vertex.set(i, new Vertex(this, 0.0, seq[i], names[i], sequences[i]));
+                }
+                // NJ main recursion
+                int vnum = seq.length;
+                Vertex newVert;
+                for (int remN = dist.length; remN > 1; remN--) {
+                    stoppable();
+                    double minVal = BIGNUM;
+                    double val = 0.0;
+                    int i = -1;
+                    int j = -1;
+                    for (int k = 1; k < dist.length; k++) {
+                        for (int l = 0; l < k; l++) {
+                            if (where[k] > -1 && where[l] > -1 && (val = (remN - 2) * dist[k][l] - sumDist[k] - sumDist[l]) < minVal) {
+                                i = k;
+                                j = l;
+                                minVal = val;
+                            }
+                        }
+                    }
+                    newVert = new Vertex(this, 0.0);    /* new vertex */
+                    vertex.set(vnum, newVert);
+                    newVert.left = vertex.get(where[i]);
+                    newVert.right = vertex.get(where[j]);
+                    //System.out.println("Joining vertices "+where[i]+" and "+where[j]);
+                    newVert.parent = null;
+                    newVert.left.parent = newVert.right.parent = newVert;
+                    newVert.left.edgeLength = dist[i][j] / 2 - (remN > 2 ? (sumDist[i] - sumDist[j]) / (2 * remN - 4) : 0.001);
+                    newVert.right.edgeLength = dist[i][j] - newVert.left.edgeLength;
 
-            val = (newVert.left.length + newVert.right.length) / 0.2;
-            newVert.left.edgeLength /= val;
-            newVert.right.edgeLength /= val;
+                    val = (newVert.left.length + newVert.right.length) / 0.2;
+                    newVert.left.edgeLength /= val;
+                    newVert.right.edgeLength /= val;
 
-            if (newVert.left.edgeLength < 0.01) {
-                newVert.left.edgeLength = 0.01;
-            }
-            if (newVert.right.edgeLength < 0.01) {
-                newVert.right.edgeLength = 0.01;
-            }
+                    if (newVert.left.edgeLength < 0.01) {
+                        newVert.left.edgeLength = 0.01;
+                    }
+                    if (newVert.right.edgeLength < 0.01) {
+                        newVert.right.edgeLength = 0.01;
+                    }
 
 
-            //	    newVert.left.edgeLength = 0.1;
-            //newVert.right.edgeLength = 0.1;
+                    //	    newVert.left.edgeLength = 0.1;
+                    //newVert.right.edgeLength = 0.1;
 
-            newVert.left.edgeChangeUpdate();
-            newVert.right.edgeChangeUpdate();
+                    newVert.left.edgeChangeUpdate();
+                    newVert.right.edgeChangeUpdate();
 
             AlignColumn fake = new AlignColumn(newVert);
             newVert.first = fake;
@@ -552,11 +545,12 @@ public class Tree extends Stoppable {
             where[i] = vnum;
             vnum++;
         }
-        root = vertex[vnum - 1];
+        root = vertex.get(vnum - 1);
         root.calcOrphan();
         root.calcFelsRecursively();
         /////////////
 
+        System.out.println(String.format("Log likelihood: %f", getLogLike()));
     }
 
     public double getLogLike() {
@@ -569,13 +563,13 @@ public class Tree extends Stoppable {
 
 
     int getTopVertexId(int ind) {
-        if (root == vertex[ind]) {
+        if (root == vertex.get(ind)) {
             return 0;
         }
-        if (root.left == vertex[ind]) {
+        if (root.left == vertex.get(ind)) {
             return 1;
         }
-        if (root.right == vertex[ind]) {
+        if (root.right == vertex.get(ind)) {
             return 2;
         }
         return -1;
@@ -586,21 +580,32 @@ public class Tree extends Stoppable {
      * leaves come first in the {@link #vertex} array.
      */
 	public State getState() {
-		int nn = vertex.length;
+		int nn = vertex.size();
 		int nl = (nn+1)/2;
 		State state = new State(nn);
 		
 		int i;
 		HashMap<Vertex, Integer> lookup = new HashMap<Vertex, Integer>();
 		for(i = 0; i < nn; i++)
-			lookup.put(vertex[i], i);
+			lookup.put(vertex.get(i), i);
 		
 		Vertex v;
 		state.root = lookup.get(root);
 		for(i = 0; i < nn; i++) {
-			v = vertex[i];
-			state.left[i] = v.left != null ? lookup.get(v.left) : -1;
-			state.right[i] = v.right != null ? lookup.get(v.right) : -1;
+			v = vertex.get(i);
+
+            ArrayList<Integer> children = new ArrayList<Integer>(2);
+            if (v.left != null)
+                children.add(lookup.get(v.left));
+            if (v.right != null)
+                children.add(lookup.get(v.right));
+
+            // Would be nice if this unboxing could be done automatically,
+            // but Java seems to lack support for this :(!
+            state.children[i] = new int[children.size()];
+            for (int j = 0; j < children.size(); j++)
+                state.children[i][j] = children.get(j);
+
 			state.parent[i] = v.parent != null ? lookup.get(v.parent) : -1;
 			state.edgeLen[i] = v.edgeLength;
 
@@ -609,7 +614,7 @@ public class Tree extends Stoppable {
 			state.seq[i] = v.sequence();
 		}
 		for(i = 0; i < nl; i++)
-			state.name[i] = vertex[i].name;
+			state.name[i] = vertex.get(i).name;
 		
 		state.indelParams = hmm2.params.clone();
 		state.substParams = substitutionModel.params.clone();
@@ -617,6 +622,11 @@ public class Tree extends Stoppable {
 		
 		return state;
 	}
+
+    @Override
+    public SubstitutionModel getSubstitutionModel() {
+        return substitutionModel;
+    }
 
     /**
      * Generates a String contaning the description of the tree in Newick format.
@@ -630,6 +640,28 @@ public class Tree extends Stoppable {
 		return - root.calcSumOfEdges() - Math.log(substitutionModel.getPrior()) - 
 				hmm2.params[1] - hmm2.params[2];
 	}
+
+    @Override
+    public double getOrphanLogLike() {
+        return root.orphanLogLike;
+    }
+
+    public double getR() {
+        return hmm2.params[0];
+    }
+
+    public double getLambda() {
+        return hmm2.params[1];
+    }
+
+    public double getMu() {
+        return hmm2.params[2];
+    }
+
+    @Override
+    public double getHeat() {
+        return heat;
+    }
 
     /**
      * Returns with a String array containing the alignment of sequences on the tree.
@@ -676,9 +708,9 @@ public class Tree extends Stoppable {
      */
     public String rowSequences() {
         String s = "";
-        for (int i = 0; i < vertex.length; i++) {
-            if (vertex[i].left == null) {
-                s += vertex[i].name + "\t" + vertex[i].sequence() + "\n";
+        for (Vertex v : vertex) {
+            if (v.left == null) {
+                s += v.name + "\t" + v.sequence() + "\n";
             }
         }
         return s;
@@ -708,8 +740,8 @@ public class Tree extends Stoppable {
      * @param taxonName Taxon on which to root tree 
      */ 
     public void makeRoot(String taxonName){ 
-        if(vertex.length>0){ 
-                Vertex taxon = vertex[0]; 
+        if(vertex.size() > 0){
+                Vertex taxon = vertex.get(0);
                 for(Vertex currentNode : vertex){ 
                         if(currentNode.name == taxonName){ 
                                 taxon = currentNode; 

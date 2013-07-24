@@ -69,6 +69,7 @@ public class TreeNode {
      */
     public void addChild(TreeNode node) {
         children.add(node);
+        node.parent = this;
     }
 
     /**
@@ -245,14 +246,24 @@ public class TreeNode {
             return edgeLength + max;
         }
     }
-    
-    /** TODO: WHAT? */
-    public TreeNode getLeft() {
-    	return children.get(0);
-    }
-    
-    public TreeNode getRight() {
-    	return children.get(1);
+
+    public TreeNode rootAtLeaf() {
+        TreeNode root = this;
+        while (root.children.size() > 1) {
+            TreeNode child = root.children.get(0);
+            root.children.remove(0);
+
+            TreeNode rootOfParent = root.parent;
+            child.addChild(root);
+            child.parent = rootOfParent;
+
+            double tmp = root.edgeLength;
+            root.edgeLength = child.edgeLength;
+            child.edgeLength = tmp;
+
+            root = child;
+        }
+        return root;
     }
 
 }
