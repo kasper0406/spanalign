@@ -13,6 +13,7 @@ import javax.swing.*;
 
 import statalign.base.AutomateParamSettings;
 import statalign.base.MCMCPars;
+import statalign.base.Spannoid;
 
 /**
  * 
@@ -27,8 +28,11 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
 	private MCMCPars pars;
 //	boolean toRun = false;
 
-    JComboBox<MCMCPars.TreeType> treeChooser = new JComboBox<MCMCPars.TreeType>(
-            new MCMCPars.TreeType[]{ MCMCPars.TreeType.STEINER, MCMCPars.TreeType.SPANNOID });
+    JComboBox<MCMCPars.TreeType> treeChooser =
+            new JComboBox<MCMCPars.TreeType>(MCMCPars.TreeType.values());
+    JComboBox<Spannoid.BonphyStrategy> bonphyStrategyChooser =
+            new JComboBox<Spannoid.BonphyStrategy>(Spannoid.BonphyStrategy.values());
+
     JTextField componentSize = new JTextField(10);
 
 	JTextField burnIn = new JTextField(10);
@@ -50,7 +54,7 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
 		cp.setLayout(new BorderLayout());
 		Box bigBox = Box.createVerticalBox();
 		JPanel pan = new JPanel();
-		GridLayout l = new GridLayout(6,4);
+		GridLayout l = new GridLayout(7,4);
 		l.setHgap(5);
 		l.setVgap(5);
 		pan.setLayout(l);
@@ -66,6 +70,11 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
         pan.add(new JLabel("Component size:"));
         pan.add(componentSize);
         componentSize.setEnabled(true);
+        pan.add(new JLabel(""));
+
+        pan.add(new JLabel("Bonphy strategy:"));
+        pan.add(bonphyStrategyChooser);
+        bonphyStrategyChooser.setEnabled(true);
         pan.add(new JLabel(""));
 
 		pan.add(new JLabel("Burn-in cycles:"));
@@ -135,6 +144,7 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
 	void display(Component c) {
         treeChooser.setSelectedItem(pars.treeType);
         componentSize.setText(Integer.toString(pars.componentSize));
+        bonphyStrategyChooser.setSelectedItem(pars.bonphyStrategy);
 
 		burnIn.setText(Integer.toString(pars.burnIn));
 		cycles.setText(Integer.toString(pars.cycles));
@@ -167,6 +177,7 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
 			try {
                 pars.treeType = (MCMCPars.TreeType) treeChooser.getSelectedItem(); // Safe cast
                 pars.componentSize = Integer.parseInt(componentSize.getText());
+                pars.bonphyStrategy = (Spannoid.BonphyStrategy) bonphyStrategyChooser.getSelectedItem(); // Safe cast
 
 				pars.burnIn = Integer.parseInt(burnIn.getText());
 				pars.cycles = Integer.parseInt(cycles.getText());
@@ -194,6 +205,8 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
 
 	private void updateEnabled() {
         componentSize.setEnabled(treeChooser.getSelectedItem() == MCMCPars.TreeType.SPANNOID);
+        bonphyStrategyChooser.setEnabled(treeChooser.getSelectedItem() == MCMCPars.TreeType.SPANNOID);
+
 		cycles.setEnabled(!automateNumberOfSamples.isSelected());
 		sampRate.setEnabled(!automateStepRate.isSelected());
 		burnIn.setEnabled(!automateBurnIn.isSelected());

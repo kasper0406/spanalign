@@ -16,8 +16,8 @@ public class InputData {
 	 * This class stores the parameters (number of burn-in cycles, number of
 	 * steps, number of samplings) of the MCMC
 	 */
-	public MCMCPars pars = new MCMCPars(MCMCPars.TreeType.SPANNOID, 4, 10000, 50000, 100, 1, 1, 100,
-			new AutomateParamSettings());
+	public MCMCPars pars = new MCMCPars(MCMCPars.TreeType.SPANNOID, 4, Spannoid.BonphyStrategy.TOTAL_LENGTH,
+            10000, 50000, 100, 1, 1, 100, new AutomateParamSettings());
 	
 	/**
 	 * Are we using the parallel version?

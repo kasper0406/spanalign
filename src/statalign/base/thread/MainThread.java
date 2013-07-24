@@ -75,7 +75,8 @@ public class MainThread extends StoppableThread {
 
                 case SPANNOID:
                     int componentSize = owner.inputData.pars.componentSize;
-                    Spannoid spannoid = new Spannoid(componentSize, Spannoid.BonphyStrategy.TOTAL_LENGTH, nongapped,
+                    Spannoid.BonphyStrategy bonphyStrategy = owner.inputData.pars.bonphyStrategy;
+                    Spannoid spannoid = new Spannoid(componentSize, bonphyStrategy, nongapped,
                             seqs.getSeqnames().toArray(new String[seqs.size()]),
                             owner.inputData.model, owner.inputData.model.attachedScoringScheme);
                     mcmc = new Mcmc(new SpannoidMCMCStrategy(spannoid), owner.inputData.pars, owner.postProcMan);

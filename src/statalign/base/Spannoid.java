@@ -27,18 +27,24 @@ public class Spannoid extends Stoppable implements ITree {
 
     // TODO: Add more options
     public enum BonphyStrategy {
-        TOTAL_LENGTH(1),
-        CONTRACTED(2),
-        INTERNAL_MOVED(3);
+        TOTAL_LENGTH("Total length", 1),
+        CONTRACTED("Contracted length", 2),
+        INTERNAL_MOVED("Internal nodes moved", 3);
 
         private int bonphyOptimizationNumber;
+        private String name;
 
-        private BonphyStrategy(int bonphyOptimizationNumber) {
+        private BonphyStrategy(String name, int bonphyOptimizationNumber) {
+            this.name = name;
             this.bonphyOptimizationNumber = bonphyOptimizationNumber;
         }
 
-        public String toString() {
+        public String getOptimizationNumber() {
             return Integer.toString(bonphyOptimizationNumber);
+        }
+
+        public String toString() {
+            return name;
         }
     };
 
@@ -66,7 +72,8 @@ public class Spannoid extends Stoppable implements ITree {
         for (int i = 0; i < names.length; i++)
             nameMap.put(names[i], i);
 
-        Process bonphy = Runtime.getRuntime().exec(BONPHY_PATH + " -k" + componentSize + " -s" + optimizationStrategy);
+        Process bonphy = Runtime.getRuntime().exec(BONPHY_PATH + " -k" + componentSize
+                + " -s" + optimizationStrategy.getOptimizationNumber());
         OutputStreamWriter output = new OutputStreamWriter(bonphy.getOutputStream());
         output.write(njTree);
         output.close();
@@ -668,7 +675,7 @@ public class Spannoid extends Stoppable implements ITree {
         */
     }
 
-    public static class SpannoidUpdater implements ITreeUpdater<Spannoid> {
+    public static class SpannoidUpdater extends AbstractUpdater<Spannoid> {
         private static SteinerTreeUpdater updater = new SteinerTreeUpdater();
 
         @Override

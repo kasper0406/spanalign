@@ -35,6 +35,11 @@ public class MCMCPars {
      */
     public int componentSize;
 
+    /**
+     * The strategy used in bonphy for edge contractions of Steiner Tree -> k-Spannoid.
+     */
+    public Spannoid.BonphyStrategy bonphyStrategy;
+
 	/**
 	 * 
 	 * Number of burn-in steps
@@ -79,10 +84,12 @@ public class MCMCPars {
 	 * @param cycles this.cycles is set to this value.
 	 * @param sampRate this.sampRate is set to this value.
 	 */
-	public MCMCPars(TreeType treeType, int componentSize, int burnIn, int cycles, int sampRate,
+	public MCMCPars(TreeType treeType, int componentSize, Spannoid.BonphyStrategy bonphyStrategy,
+                    int burnIn, int cycles, int sampRate,
                     long seed, long swapSeed, int swapRate, AutomateParamSettings autoParamSettings) {
         this.treeType = treeType;
         this.componentSize = componentSize;
+        this.bonphyStrategy = bonphyStrategy;
 		this.burnIn = burnIn;
 		this.cycles = cycles;
 		this.sampRate = sampRate;
