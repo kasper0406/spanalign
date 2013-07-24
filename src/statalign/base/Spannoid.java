@@ -21,7 +21,7 @@ public class Spannoid extends Stoppable implements ITree {
     private int n;
     private List<Tree> components = new ArrayList<Tree>();
 
-    private final String BONPHY_PATH = "/Users/kasper0406/Desktop/bonphy/bonphy.py";
+    private final String BONPHY_PATH = "/home/aldo/projects/bonphy/bonphy.py";
 
     private SubstitutionModel substitutionModel;
 
@@ -702,6 +702,12 @@ public class Spannoid extends Stoppable implements ITree {
                 updater.recalcSubstitutionParameters(component);
         }
 
+        @Override
+        public void revertNNI(Tree tree, AbstractUpdater.NNIResult nni){
+            revertNNI(tree, nni);
+
+        }
+
         public Tree getRandomComponent(Spannoid spannoid) {
             int i = Utils.generator.nextInt(spannoid.components.size());
             return spannoid.components.get(i);
@@ -712,5 +718,49 @@ public class Spannoid extends Stoppable implements ITree {
             int j = Utils.generator.nextInt(component.vertex.size());
             return component.vertex.get(j);
         }
+
+
+
+
+
+        public void moveComponent(Spannoid spannoid, Vertex source, int sourceIndex, Vertex dest, int destIndex){
+
+            int vId = spannoid.labeledVertexIds.get(source);
+            spannoid.componentConnections.get(vId).remove(source);
+            int destId = spannoid.labeledVertexIds.get(dest);
+            spannoid.componentConnections.get(destId).add(source);
+
+            source.seq = dest.seq;
+            source.length = dest.length;
+            source.name = dest.name;
+            source.first = new AlignColumn(source);
+
+            AlignColumn cur = dest.first;
+            source.first.seq = cur.seq.clone();
+            AlignColumn prev = source.first;
+            cur  = cur.next;
+
+            while (cur != dest.last && cur != null){
+                    AlignColumn actual = new AlignColumn(source);
+                    actual.seq = cur.seq.clone();
+
+                    actual.prev = prev;
+                    prev.next = actual;
+                    prev = actual;
+
+                    cur = cur.next;
+            }
+
+            source.last = prev;
+
+            source.owner.names.set(sourceIndex, dest.owner.names.get(destIndex));
+
+            source.fullWin();
+            source.parent.hmm3AlignWithSave();
+            source.calcAllUp();
+
+        }
+
+
     }
 }

@@ -18,9 +18,27 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         return sampleEdge(vertex);
     }
 
+
+    private boolean sampleInnerTopology() {
+        Tree component = updater.getRandomComponent(tree);
+        return sampleTopology(component);
+    }
+
+    private boolean sampleMoveComponents(){
+
+        return false;
+    }
+
+
     @Override
     public boolean sampleTopology() {
-        return false;
+        int j = Utils.generator.nextInt(3);
+        switch (j) {
+            case 0:
+                return sampleInnerTopology();
+            default:
+                return false;
+        }
     }
 
     @Override
