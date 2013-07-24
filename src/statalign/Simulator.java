@@ -1,5 +1,8 @@
 package statalign;
 
+import statalign.model.subst.SubstitutionModel;
+import statalign.model.subst.plugins.Dayhoff;
+import statalign.model.subst.plugins.JukesCantor;
 import statalign.postprocess.plugins.TreeNode;
 import statalign.postprocess.utils.NewickParser;
 
@@ -15,30 +18,39 @@ import java.util.*;
  */
 public class Simulator {
     private static Random random;
+    private static SubstitutionModel substitutionModel;
 
-    private static double Alpha, Lambda, Mu, R;
+    private static double Lambda, Mu, R;
+    private static double defaultEdgeLength;
 
     public static void main(String[] args) {
         int seed = 1;
+        String tree = "(((A,B),C),((D,E),F))G;";
+        String file = "simulated.fasta";
+
         random = new Random(seed);
+        try {
+            substitutionModel = new Dayhoff();
+        } catch (Exception e) {
+            System.out.println("Something fairly horrible happened.\n" + e);
+        }
 
         double averageFragmentLength = 1;
         double averageSequenceLength = 100;
 
-        Alpha = 0.02;
-        Lambda = 0.01;
-
+        defaultEdgeLength = 0.2;
+        Lambda = 0.05;
         Mu = Lambda / (1 - 1 / (1 + (averageSequenceLength / averageFragmentLength)));
         R = 1 - 1 / (1 + averageFragmentLength);
 
-        NewickParser parser = new NewickParser("(A:1,B:1,(C:1,D:1):1):1;");
+        NewickParser parser = new NewickParser(tree);
         Node root = buildTree(parser.parse());
 
         root.buildAlignment();
 
         FileWriter fileWriter = null;
         try {
-            fileWriter = new FileWriter("simulated.fasta");
+            fileWriter = new FileWriter(file);
             String fasta = buildFasta(root);
             fileWriter.append(fasta);
             System.out.print(fasta);
@@ -56,7 +68,12 @@ public class Simulator {
     }
 
     static Node buildTree(TreeNode root) {
-        Node result = new Node(root.name, new Model(random, Alpha, Lambda, Mu, R, root.edgeLength));
+        double edgeLength = root.edgeLength;
+        if (edgeLength == 0) {
+            edgeLength = defaultEdgeLength;
+        }
+
+        Node result = new Node(root.name, new Model(random, substitutionModel, Lambda, Mu, R, edgeLength));
 
         for (TreeNode child : root.children) {
             result.getChildren().add(buildTree(child));
@@ -84,18 +101,22 @@ public class Simulator {
 class Model {
     private Random random;
 
-    // Jukes-Cantor
-    private double Alpha;
+    private SubstitutionModel substitutionModel;
+    private double[][] substitutionProb;
 
     private double Lambda, Mu, R;
     private double T;
 
-    Model(Random random, double Alpha, double Lambda, double Mu, double R, double T) {
+    Model(Random random, SubstitutionModel substitutionModel, double Lambda, double Mu, double R, double T) {
         this.random = random;
-        this.Alpha = Alpha;
+
+        this.substitutionModel = substitutionModel;
+        substitutionProb = substitutionModel.updateTransitionMatrix(null, T);
+
         this.Lambda = Lambda;
         this.Mu = Mu;
         this.R = R;
+
         this.T = T;
     }
 
@@ -105,16 +126,17 @@ class Model {
     }
 
     char generateNucleotide() {
-        // Jukes-Cantor
-        return "ACGT".charAt(random.nextInt(4));
+        return substitutionModel.alphabet[choose(substitutionModel.e)];
     }
 
     char evolveNucleotide(char parent) {
-        // Jukes-Cantor
-        if (withProbability((1 + 3 * Math.exp(- 4 * Alpha * T)) / 4)) {
-            return parent;
+        int i;
+        for (i = 0; i < substitutionModel.alphabet.length; i++) {
+            if (substitutionModel.alphabet[i] == parent) {
+                break;
+            }
         }
-        return "ACGT".replace("" + parent, "").charAt(random.nextInt(3));
+        return substitutionModel.alphabet[choose(substitutionProb[i])];
     }
 
     String generateFragment() {
@@ -161,6 +183,13 @@ class Model {
 
     private int geometric(double p) {
         return (int)Math.floor(Math.log(random.nextDouble()) / Math.log(p));
+    }
+
+    private int choose(double[] p) {
+        double u = random.nextDouble();
+        int choice;
+        for (choice = 0; (u -= p[choice]) > 0; choice++);
+        return choice;
     }
 
     private boolean withProbability(double p) {
