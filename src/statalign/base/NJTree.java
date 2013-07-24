@@ -97,6 +97,11 @@ public class NJTree {
             left.edgeLength = dist[i][j] / 2 - (remN > 2 ? (sumDist[i] - sumDist[j]) / (2 * remN - 4) : 0.001);
             right.edgeLength = dist[i][j] - left.edgeLength;
 
+            double length = (seq[i].length + seq[j].length) / 2;
+            double scale = 0.1 / length;
+            left.edgeLength *= scale;
+            right.edgeLength *= scale;
+
             where[i] = where[j] = -1;
             sumDist[i] = 0;
             for (int a = 0; a < dist.length; a++) {
