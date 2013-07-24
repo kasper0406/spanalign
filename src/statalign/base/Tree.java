@@ -51,7 +51,7 @@ public class Tree extends Stoppable implements ITree {
 
     /** The name of the sequences */
     // public String[] names;
-    public List<String> names = new ArrayList<String>();
+    //public List<String> names = new ArrayList<String>();
 
     static final int GAPOPEN = 9;
     static final int GAPEXT = 2;
@@ -206,11 +206,11 @@ public class Tree extends Stoppable implements ITree {
             root.calcIndelLikeRecursively();
             //System.out.println("Log-likelihood: "+getLogLike());
 
-            names = new ArrayList<String>((vertex.size() + 1) / 2);
-            for (Vertex v : vertex) {
-                if (v.left == null)
-                    names.add(v.name);
-            }
+           // names = new ArrayList<String>((vertex.size() + 1) / 2);
+           // for (Vertex v : vertex) {
+            //    if (v.left == null)
+             //       names.add(v.name);
+            //}
         } catch (IOException e) {
         }
     }
@@ -295,11 +295,11 @@ public class Tree extends Stoppable implements ITree {
             }
         }
 
-        names = new ArrayList<String>((vertex.size() + 1) / 2);
+        /*names = new ArrayList<String>((vertex.size() + 1) / 2);
         for (Vertex v : vertex) {
             if (v.left == null)
                 names.add(v.name);
-        }
+        }*/
     }
 
 
@@ -320,7 +320,7 @@ public class Tree extends Stoppable implements ITree {
      *                  the tree, appearing in the graphical interface showing multiple alignments.
      */
     public Tree(String[] sequences, String[] names, SubstitutionModel model, SubstitutionScore ss) throws StoppedException {
-        this.names = Arrays.asList(names);
+        //this.names = Arrays.asList(names);
         substitutionModel = model;
         hmm2 = new HmmTkf92(null);
         hmm3 = new HmmNonParam();
