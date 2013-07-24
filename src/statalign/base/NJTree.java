@@ -102,6 +102,9 @@ public class NJTree {
             left.edgeLength *= scale;
             right.edgeLength *= scale;
 
+            left.edgeLength = Math.max(left.edgeLength, 0.01);
+            right.edgeLength = Math.max(right.edgeLength, 0.01);
+
             where[i] = where[j] = -1;
             sumDist[i] = 0;
             for (int a = 0; a < dist.length; a++) {
