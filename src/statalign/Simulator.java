@@ -22,11 +22,14 @@ public class Simulator {
         int seed = 1;
         random = new Random(seed);
 
-        Alpha = 0.1;
+        double averageFragmentLength = 1;
+        double averageSequenceLength = 100;
 
-        Lambda = 0.0099;
-        Mu = 0.0101;
-        R = 0.75;
+        Alpha = 0.02;
+        Lambda = 0.01;
+
+        Mu = Lambda / (1 - 1 / (1 + (averageSequenceLength / averageFragmentLength)));
+        R = 1 - 1 / (1 + averageFragmentLength);
 
         NewickParser parser = new NewickParser("(A:1,B:1,(C:1,D:1):1):1;");
         Node root = buildTree(parser.parse());
@@ -36,7 +39,9 @@ public class Simulator {
         FileWriter fileWriter = null;
         try {
             fileWriter = new FileWriter("simulated.fasta");
-            fileWriter.append(buildFasta(root));
+            String fasta = buildFasta(root);
+            fileWriter.append(fasta);
+            System.out.print(fasta);
         } catch (Exception e) {
             System.out.println("Something horrible happened.\n" + e);
         } finally {
@@ -191,18 +196,21 @@ class Node {
     }
 
     void buildAlignment() {
-        createInitialFragments();
+        createInitialFragmentsForChildren();
         createFragments(model.numberOfFragmentsAtRootNode());
     }
 
     void createInitialFragments() {
+        createInitialFragmentsForChildren();
+        createFragments(model.numberOfNewFragmentsIfParentFragmentSurvived());
+    }
+
+    private void createInitialFragmentsForChildren() {
         for (Node child : children) {
             child.createInitialFragments();
         }
 
         insertCorrectGaps();
-
-        createFragments(model.numberOfNewFragmentsIfParentFragmentSurvived());
     }
 
     void parentHasNewFragment(String parentFragment) {
