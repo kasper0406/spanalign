@@ -101,12 +101,10 @@ public class CurrentAlignment extends statalign.postprocess.Postprocess{
 	
 	private String[] updateAlignment(State state) {
 		String[] rows = state.getFullAlign();
+        String[] names = state.getPaddedNames();
         String[] allAlignment = new String[rows.length];
 		for(int i = 0; i < rows.length; i++) {
-            String name = state.name[i];
-            if (name.isEmpty())
-                name = "-";
-            allAlignment[i] = name + '\t' + rows[i];
+            allAlignment[i] = names[i] + '\t' + rows[i];
         }
         /*
 		int ind = 0;

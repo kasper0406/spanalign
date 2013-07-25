@@ -137,8 +137,9 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 		//System.out.println(curAlig.leafAlignment);
         String[] leafAlignment = new String[state.nl];
         String[] rows = state.getLeafAlign();
+        String[] names = state.getPaddedNames();
         for (int i = 0; i < rows.length; i++)
-            leafAlignment[i] = state.name[i] + '\t' + rows[i];
+            leafAlignment[i] = names[i] + '\t' + rows[i];
 
 		for(int i = 0; i < t.length; i++){
             if (leafAlignment[i] == null) {

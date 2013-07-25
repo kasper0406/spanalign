@@ -108,6 +108,25 @@ public class State {
         for (int i = 0; i < nn; i++)
             name[i] = "";
     }
+
+    public String[] getPaddedNames() {
+        String[] result = new String[name.length];
+
+        int maxLength = 0;
+        for (int i = 0; i < name.length; i++) {
+            if (name[i].length() > maxLength) {
+                maxLength = name[i].length();
+            }
+        }
+
+        for (int i = 0; i < name.length; i++) {
+            char[] padding = new char[maxLength - name[i].length()];
+            Arrays.fill(padding, ' ');
+            result[i] = name[i] + new String(padding);
+        }
+
+        return result;
+    }
 	
 	/**
 	 * Returns string representation of alignment between <i>node</i> and its parent. Uses
