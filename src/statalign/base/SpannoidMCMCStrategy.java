@@ -26,13 +26,14 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
     private boolean sampleMoveComponents(){
         Vertex source = updater.getRandomInnerBlack(tree);
-        Tree adj = updater.getRandomNeighbouringComponent(tree, source);
-        Vertex dest = updater.getComponentRandomVertex(adj);
+        //Tree adj = updater.getRandomNeighbouringComponent(tree, source);
+        //Vertex dest = updater.getComponentRandomVertex(adj);
+
+        Vertex dest = updater.getDestinationFromSourceMoveComponent(tree, source);
+
         updater.moveComponent(tree, source, dest);
         return true;
-
     }
-
 
     @Override
     public boolean sampleIndelParameter() {
@@ -44,7 +45,8 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         int j = Utils.generator.nextInt(3);
         switch (j) {
             case 0:
-                return sampleInnerTopology();
+                // return sampleInnerTopology();
+                return false;
             case 1:
                 return sampleMoveComponents();
             default:

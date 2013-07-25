@@ -21,7 +21,7 @@ public class Spannoid extends Stoppable implements ITree {
     private int n;
     private List<Tree> components = new ArrayList<Tree>();
 
-    private final String BONPHY_PATH = "/home/aldo/projects/bonphy/bonphy.py";
+    private final String BONPHY_PATH = "/Users/kasper0406/Desktop/bonphy/bonphy.py";
 
     private SubstitutionModel substitutionModel;
 
@@ -609,6 +609,11 @@ public class Spannoid extends Stoppable implements ITree {
         int[] toChild = new int[length];
         int parentPos = 0;
         for (int childPos = 0; childPos < length; childPos++) {
+            if (parentPos >= toParent.length) {
+                toChild[childPos] = -(parentPos + 1);
+                parentPos++;
+            } else
+
             if (toParent[parentPos] == childPos) {
                 // Match
                 toChild[childPos] = parentPos++;
@@ -721,8 +726,6 @@ public class Spannoid extends Stoppable implements ITree {
 
         }
 
-
-
         public Tree getRandomComponent(Spannoid spannoid) {
             int i = Utils.generator.nextInt(spannoid.components.size());
             return spannoid.components.get(i);
@@ -748,8 +751,14 @@ public class Spannoid extends Stoppable implements ITree {
         public Tree getRandomNeighbouringComponent(Spannoid spannoid, Vertex source){
             int sourceIndex = spannoid.labeledVertexIds.get(source);
             Set<Vertex> neighborhood = spannoid.componentConnections.get(sourceIndex);
-            neighborhood.remove(source);
-            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]);
+            Vertex[] overlapping_vertices = new Vertex[neighborhood.size() - 1];
+            int i = 0;
+            for (Vertex v : neighborhood) {
+                if (v != source)
+                    overlapping_vertices[i++] = v;
+            }
+
+            // neighborhood.remove(source);
             int k = Utils.generator.nextInt(overlapping_vertices.length); //// TODO:if neighborhood is empty now ??????
             return overlapping_vertices[k].owner;
 
@@ -780,8 +789,10 @@ public class Spannoid extends Stoppable implements ITree {
             spannoid.componentConnections.get(vId).remove(source);
             int destId = spannoid.labeledVertexIds.get(dest);
             spannoid.componentConnections.get(destId).add(source);
-            spannoid.setupInnerBlackNodes();
 
+            spannoid.labeledVertexIds.put(source, destId);
+
+            spannoid.setupInnerBlackNodes();
 
             source.seq = dest.seq;
             source.length = dest.length;
@@ -794,31 +805,85 @@ public class Spannoid extends Stoppable implements ITree {
             cur  = cur.next;
 
             while (cur != dest.last && cur != null){
-                    AlignColumn actual = new AlignColumn(source);
-                    actual.seq = cur.seq.clone();
+                AlignColumn actual = new AlignColumn(source);
+                actual.seq = cur.seq.clone();
 
-                    actual.prev = prev;
-                    prev.next = actual;
-                    prev = actual;
+                actual.prev = prev;
+                prev.next = actual;
+                prev = actual;
 
-                    cur = cur.next;
+                cur = cur.next;
             }
 
-            source.last = prev;
+            AlignColumn last = new AlignColumn(source);
+            last.prev = prev;
+            prev.next = last;
 
-            //source.owner.names.set(sourceIndex, dest.owner.names.get(destIndex));
+            source.last = last;
+
+            AlignColumn c = source.parent.first;
+            AlignColumn n = source.first;
+            while (c != source.parent.last) {
+                if (source.parent.left == source) {
+                    /*
+                    if (n != null) {
+                        c.left = n;
+                        n.parent = c;
+                        n.orphan = false;
+                    } else */
+                        c.left = null;
+                } else {
+                    /* if (n != null) {
+                        c.right = n;
+                        n.parent = c;
+                        n.orphan = false;
+                    } else */
+                        c.right = null;
+                }
+
+                c = c.next;
+                if (n != null)
+                    n = n.next;
+            }
+
+            source.last.parent = source.parent.last;
+            source.last.orphan = false;
+
+            if (source.parent.left == source)
+                source.parent.last.left = source.last;
+            else
+                source.parent.last.right = source.last;
 
             source.fullWin();
             source.parent.fullWin();
             source.brother().fullWin();
-            source.selected = true;
-            source.parent.selected = true;
-            source.brother().selected = true;
-            source.parent.hmm3AlignWithSave();
-            source.calcAllUp();
 
+            source.setAllAlignColumnsUnselected();
+            source.parent.setAllAlignColumnsUnselected();
+            source.brother().setAllAlignColumnsUnselected();
+
+            source.hmm2AlignWithSave();
+            source.parent.hmm3AlignWithSave();
+            if (source.parent.parent != null)
+                source.parent.hmm2AlignWithSave();
+
+            // source.hmm2AlignWithSave();
+            source.calcAllUp();
         }
 
-
+        public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
+            List<Vertex> destSet = new ArrayList<Vertex>();
+            Set<Vertex> connected = spannoid.componentConnections.get(spannoid.labeledVertexIds.get(source));
+            for (Vertex con : connected) {
+                if (con != source) {
+                    for (Vertex v : con.owner.vertex) {
+                        if (v != con && v.name != null)
+                            destSet.add(v);
+                    }
+                }
+            }
+            int k = Utils.generator.nextInt(destSet.size());
+            return destSet.get(k);
+        }
     }
 }

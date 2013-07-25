@@ -49,7 +49,7 @@ public class SpannoidViewer extends Postprocess {
             out.close();
 
             File curDir = new File(".");
-            Process p = Runtime.getRuntime().exec("/usr/bin/dot -Tjpg -o"+ curDir.getAbsolutePath() +"/spannoid.jpg < "+ curDir.getAbsolutePath() +"/spannoid.dot");
+            Process p = Runtime.getRuntime().exec("/opt/local/bin/dot -Tjpg -o"+ curDir.getAbsolutePath() +"/spannoid.jpg < "+ curDir.getAbsolutePath() +"/spannoid.dot");
             p.waitFor();
             displayImage();
         } catch (Exception e) {
