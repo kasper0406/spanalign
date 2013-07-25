@@ -1,6 +1,6 @@
 package statalign.postprocess.plugins;
 
-import java.awt.BorderLayout;
+import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +26,7 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 	public int frequency = 5;
 	JPanel pan;
 	AlignmentGUI gui;
+    AlignmentGUI gui_ref;
 	//private boolean sampling = true;
 
 	// CurrentAlignment curAlig;
@@ -44,6 +45,8 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 
 	InputData input;
 
+    AlignmentScorer scorer;
+
 	public MpdAlignment(){
 		screenable = true;
 		outputable = true;
@@ -54,7 +57,7 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 
 	@Override
 	public JPanel getJPanel() {
-		pan = new JPanel(new BorderLayout());
+		pan = new JPanel(new GridLayout(0,1));
 		return pan;
 	}
 
@@ -108,7 +111,10 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 			title = input.title;
 			JScrollPane scroll = new JScrollPane();
 			scroll.setViewportView(gui = new AlignmentGUI(title,input.model));//, mcmc.tree.printedAlignment()));
-			pan.add(scroll, BorderLayout.CENTER);
+			pan.add(scroll);
+            scroll = new JScrollPane();
+            scroll.setViewportView(gui_ref = new AlignmentGUI("Reference alignment",input.model));
+            pan.add(scroll);
 //			System.out.println("Mpd Alignment parent: " + pan.getParent());
 			pan.getParent().validate();
 		}
@@ -122,6 +128,25 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 		t = new String[sizeOfAlignments][];
 		sequences = null;
 		viterbialignment = new String[sizeOfAlignments];
+
+        if (show) {
+            gui_ref.alignment = new String[input.seqs.size()];
+            for (int i = 0; i < input.seqs.size(); i++) {
+                gui_ref.alignment[i] = input.seqs.getSeqNamePadded(i) + "\t" + input.seqs.getSequence(i);
+            }
+            Arrays.sort(gui_ref.alignment);
+        }
+
+        String[][] temp = new String[sizeOfAlignments][];
+        for (int i = 0; i < sizeOfAlignments; i++){
+            temp[i] = gui_ref.alignment[i].split("\t");
+        }
+        Arrays.sort(temp, compStringArr);
+        String[] ref = new String[sizeOfAlignments];
+        for (int i = 0; i < sizeOfAlignments; i++){
+            ref[i] = temp[i][1];
+        }
+        scorer = new AlignmentScorer(ref);
 
 		network = new ColumnNetwork();
 
@@ -225,6 +250,9 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 				gui.decoding = decoding;
 				gui.alignment = alignment;
 				gui.repaint();
+
+                gui_ref.title = String.format("Score against reference alignment: %.3f", scorer.calculateScore(viterbialignment));
+                gui_ref.repaint();
 			}
 		}
 		
@@ -269,7 +297,7 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 
 	}
 
-	@Override
+    @Override
 	public void afterLastSample() {
 		if (postprocessWrite) {
 			try {
@@ -460,4 +488,66 @@ class ColumnKey {
 		return n + (n & 1);
 	}
 
+}
+
+class AlignmentScorer {
+    private String[] ref;
+    int[] lengths;
+
+    AlignmentScorer(String[] ref) {
+        this.ref = ref;
+
+        lengths = new int[ref.length];
+        for (int i = 0; i < ref.length; i++) {
+            lengths[i] = ref[i].replace("-","").length();
+        }
+    }
+
+    public double calculateScore(String[] pred) {
+        int score = 0;
+        int total = 0;
+
+        for (int m = 0; m < ref.length-1; m++) {
+            for (int n = m+1; n < ref.length; n++) {
+                score += calculateScore(ref[m], ref[n], pred[m], pred[n]);
+                total += lengths[m];
+
+                score += calculateScore(ref[n], ref[m], pred[n], pred[m]);
+                total += lengths[n];
+            }
+        }
+
+        return (double)score / total;
+    }
+
+    private static int calculateScore(String refA, String refB, String predA, String predB) {
+        List<Integer> ref = transcode(refA, refB);
+        List<Integer> pred = transcode(predA, predB);
+
+        int score = 0;
+        for (int i = 0; i < ref.size(); i++) {
+            if (ref.get(i).equals(pred.get(i))) {
+                score++;
+            }
+        }
+
+        return score;
+    }
+
+    private static List<Integer> transcode(String A, String B) {
+        List<Integer> result = new ArrayList<Integer>();
+        int counter = 0;
+        for (int i = 0; i < A.length(); i++) {
+            boolean charAtA = A.charAt(i) != '-';
+            boolean charAtB = B.charAt(i) != '-';
+
+            if (charAtA) {
+                result.add(charAtB ? counter : -1);
+            }
+            if (charAtB) {
+                counter++;
+            }
+        }
+        return result;
+    }
 }
