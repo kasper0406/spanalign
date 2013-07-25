@@ -789,18 +789,30 @@ public class Spannoid extends Stoppable implements ITree {
             return overlapping_vertices[k];
         }
 
+        public Vertex getConnection(Spannoid spannoid, Vertex vertex) {
+            int id = spannoid.labeledVertexIds.get(vertex);
+            Set<Vertex> connections = spannoid.componentConnections.get(id);
+            for (Vertex v : connections) {
+                if (v != vertex)
+                    return v;
+            }
+            return null;
+        }
 
-        public void moveComponent(Spannoid spannoid, Vertex source, Vertex dest){
+        public double moveComponent(Spannoid spannoid, Vertex source, Vertex dest){
+            source.fullWin();
+            source.parent.fullWin();
+            double bpp = source.hmm2BackProp();
 
+            // Update internal Spannoid structure
             int vId = spannoid.labeledVertexIds.get(source);
             spannoid.componentConnections.get(vId).remove(source);
             int destId = spannoid.labeledVertexIds.get(dest);
             spannoid.componentConnections.get(destId).add(source);
-
             spannoid.labeledVertexIds.put(source, destId);
-
             spannoid.setupInnerBlackNodes();
 
+            // Update Vertex with new information and alignment
             source.seq = dest.seq;
             source.length = dest.length;
             source.name = dest.name;
@@ -832,20 +844,9 @@ public class Spannoid extends Stoppable implements ITree {
             AlignColumn n = source.first;
             while (c != source.parent.last) {
                 if (source.parent.left == source) {
-                    /*
-                    if (n != null) {
-                        c.left = n;
-                        n.parent = c;
-                        n.orphan = false;
-                    } else */
-                        c.left = null;
+                    c.left = null;
                 } else {
-                    /* if (n != null) {
-                        c.right = n;
-                        n.parent = c;
-                        n.orphan = false;
-                    } else */
-                        c.right = null;
+                    c.right = null;
                 }
 
                 c = c.next;
@@ -865,17 +866,10 @@ public class Spannoid extends Stoppable implements ITree {
             source.parent.fullWin();
             source.brother().fullWin();
 
-            source.setAllAlignColumnsUnselected();
-            source.parent.setAllAlignColumnsUnselected();
-            source.brother().setAllAlignColumnsUnselected();
-
-            source.hmm2AlignWithSave();
-            source.parent.hmm3AlignWithSave();
-            if (source.parent.parent != null)
-                source.parent.hmm2AlignWithSave();
-
-            // source.hmm2AlignWithSave();
+            bpp += source.hmm2AlignWithSave();
             source.calcAllUp();
+
+            return bpp;
         }
 
         public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {

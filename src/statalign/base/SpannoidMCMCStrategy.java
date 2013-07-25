@@ -25,20 +25,32 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
     }
 
     private boolean sampleMoveComponents(){
-        Vertex source = updater.getRandomInnerBlack(tree);
-        //Tree adj = updater.getRandomNeighbouringComponent(tree, source);
-        //Vertex dest = updater.getComponentRandomVertex(adj);
+        double oldLogLi = tree.getLogLike();
 
+        Vertex source = updater.getRandomInnerBlack(tree);
+        Vertex prev = updater.getConnection(tree, source);
         Vertex dest = updater.getDestinationFromSourceMoveComponent(tree, source);
 
-        updater.moveComponent(tree, source, dest);
-        return true;
+        double bpp = updater.moveComponent(tree, source, dest);
+
+        double newLogLi = tree.getLogLike();
+
+        if (Math.log(Utils.generator.nextDouble()) < bpp
+                + (newLogLi - oldLogLi) * tree.getHeat()) {
+            return true;
+        } else {
+            updater.moveComponent(tree, source, prev);
+
+            return false;
+        }
     }
 
+    /*
     @Override
     public boolean sampleIndelParameter() {
         return super.sampleIndelParameter();    //To change body of overridden methods use File | Settings | File Templates.
     }
+    */
 
     @Override
     public boolean sampleTopology() {
