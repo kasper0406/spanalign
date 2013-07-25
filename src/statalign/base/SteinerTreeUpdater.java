@@ -38,7 +38,7 @@ public class SteinerTreeUpdater extends AbstractUpdater<Tree>  {
 
     @Override
     public void revertNNI(Tree tree, AbstractUpdater.NNIResult nni){
-        revertNNI(tree, nni);
+        super.revertNNI(tree, nni);
 
     }
 

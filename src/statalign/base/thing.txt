@@ -21,46 +21,25 @@ public class Spannoid extends Stoppable implements ITree {
     private int n;
     private List<Tree> components = new ArrayList<Tree>();
 
-    private final String BONPHY_PATH = "/Users/kasper0406/Desktop/bonphy/bonphy.py";
+    private final String BONPHY_PATH = "/home/aldo/projects/bonphy/bonphy.py";
 
     private SubstitutionModel substitutionModel;
-
-    // TODO: Add more options
-    public enum BonphyStrategy {
-        TOTAL_LENGTH("Total length", 1),
-        CONTRACTED("Contracted length", 2),
-        INTERNAL_MOVED("Internal nodes moved", 3);
-
-        private int bonphyOptimizationNumber;
-        private String name;
-
-        private BonphyStrategy(String name, int bonphyOptimizationNumber) {
-            this.name = name;
-            this.bonphyOptimizationNumber = bonphyOptimizationNumber;
-        }
-
-        public String getOptimizationNumber() {
-            return Integer.toString(bonphyOptimizationNumber);
-        }
-
-        public String toString() {
-            return name;
-        }
-    };
 
     /*
      * Description...
      */
     private Map<Integer, Set<Vertex>> componentConnections = new HashMap<Integer, Set<Vertex>>();
     private Map<Vertex, Integer> labeledVertexIds = new HashMap<Vertex, Integer>();
-    private List<Integer> innerBlackNodes = new ArrayList<Integer>();
+
+    private List<Integer> innerBlackNodes = new ArrayList<Integer>(); /// list with the "" of the internal black nodes
+    /// the purpose of this variable is to access internal black nodes at random and easy.
+
 
 
 
     private double heat = 1.0d;
 
-    public Spannoid(int componentSize, BonphyStrategy optimizationStrategy,
-                    String[] sequences, String[] names,
+    public Spannoid(String[] sequences, String[] names,
                     SubstitutionModel model, SubstitutionScore ss)
             throws StoppedException, IOException, InterruptedException {
         this.substitutionModel = model;
@@ -75,8 +54,7 @@ public class Spannoid extends Stoppable implements ITree {
         for (int i = 0; i < names.length; i++)
             nameMap.put(names[i], i);
 
-        Process bonphy = Runtime.getRuntime().exec(BONPHY_PATH + " -k" + componentSize
-                + " -s" + optimizationStrategy.getOptimizationNumber());
+        Process bonphy = Runtime.getRuntime().exec(BONPHY_PATH + " -k3");
         OutputStreamWriter output = new OutputStreamWriter(bonphy.getOutputStream());
         output.write(njTree);
         output.close();
@@ -92,18 +70,13 @@ public class Spannoid extends Stoppable implements ITree {
             createComponents(root, model, nameMap, convertedSequences, sequences);
         }
         scanner.close();
-        setupInnerBlackNodes();
     }
 
     /**
      * Removes all Steiner nodes of degree 2 from the tree.
      */
-    /*
     private TreeNode shrinkTree(TreeNode node) {
-        // TODO: This seems overly complicated, since it seems only root node can have the problem.
-        //       Should be made simpler!
-        //       If it turns out we need to do it for all nodes, this should be generalized instead.
-        if (node.children.size() == 2 && node.parent == null) {
+        if (node.children.size() == 2) {
             if (node.name != null && !node.name.isEmpty())
                 throw new RuntimeException("Invalid format of component!");
 
@@ -118,23 +91,6 @@ public class Spannoid extends Stoppable implements ITree {
         for (int i = 0; i < node.children.size(); i++)
             node.children.set(i, shrinkTree(node.children.get(i)));
 
-        return node;
-    }
-    */
-
-    private TreeNode shrinkTree(TreeNode node) {
-        if (node.children.size() == 2 && node.parent == null) {
-            if (node.name != null && !node.name.isEmpty())
-                throw new RuntimeException("Invalid format of component!");
-
-            TreeNode left = node.children.get(0);
-            TreeNode right = node.children.get(1);
-            left.parent = null;
-            left.addChild(right);
-            right.edgeLength = left.edgeLength + right.edgeLength;
-            left.edgeLength = node.edgeLength;
-            return left;
-        }
         return node;
     }
 
@@ -153,7 +109,6 @@ public class Spannoid extends Stoppable implements ITree {
     {
         this.substitutionModel = model;
         constructFromNewick(newick, sequences, nameMap, model, ss);
-        setupInnerBlackNodes();
     }
 
     private void constructFromNewick(String newick, String[] sequences, Map<String, Integer> nameMap,
@@ -167,7 +122,7 @@ public class Spannoid extends Stoppable implements ITree {
 
         int[][][] convertedSequences = convertSequences(sequences, model, ss);
         createComponents(root, model, nameMap, convertedSequences, sequences);
-
+        setupInnerBlackNodes();
     }
 
     private void createComponents(TreeNode node, SubstitutionModel model,
@@ -184,6 +139,21 @@ public class Spannoid extends Stoppable implements ITree {
                 labeledNodesToVisit.addAll(createComponent(current, child, model, nameMap, sequences, originalSequences));
         }
     }
+
+    /// sets up the inner black nodes variable to have the internal black nodes of the tree.
+    public void setupInnerBlackNodes(){
+        innerBlackNodes = new ArrayList<Integer>();
+        /// loop through all the nodes and build the inner black nodes list
+        for (int i = 0; i < n; i++){
+            if(componentConnections.get(i).size() > 1){
+                innerBlackNodes.add(i);
+
+            }
+
+        }
+
+    }
+
 
     /**
      * Create a component.
@@ -272,8 +242,8 @@ public class Spannoid extends Stoppable implements ITree {
             treeNodeToVertex.put(current, newVertex);
         }
 
-        tree.vertex = new ArrayList<Vertex>(Collections.<Vertex>nCopies(leafVertices.size() + internalVertices.size(), null));
-        //tree.names = new ArrayList<String>(Collections.<String>nCopies(leafVertices.size(), null));
+        tree.vertex = new Vertex[leafVertices.size() + internalVertices.size()];
+        tree.names = new String[leafVertices.size()];
         int i = 0;
         for (Vertex vertex : leafVertices) {
             // Do full alignment!
@@ -282,8 +252,8 @@ public class Spannoid extends Stoppable implements ITree {
             // Ensure transition matrices are updated
             vertex.edgeChangeUpdate();
 
-            //tree.names.set(i, vertex.name);
-            tree.vertex.set(i, vertex);
+            tree.names[i] = vertex.name;
+            tree.vertex[i] = vertex;
             i++;
         }
 
@@ -296,9 +266,9 @@ public class Spannoid extends Stoppable implements ITree {
             // Ensure transition matrices are updated
             vertex.edgeChangeUpdate();
 
-            tree.vertex.set(i++, vertex);
+            tree.vertex[i++] = vertex;
 
-            // Add empty alignment column to internal nodes, and set 
+            // Add empty alignment column to internal nodes, and set
             makeFakeAlignmentColumn(vertex);
 
             // Do full alignment!
@@ -315,20 +285,6 @@ public class Spannoid extends Stoppable implements ITree {
 
         return labeledNodes;
     }
-
-    private void setupInnerBlackNodes(){
-        innerBlackNodes = new ArrayList<Integer>();
-        /// loop through all the nodes and build the inner black nodes list
-        for (int i = 0; i < n; i++){
-            if(componentConnections.get(i).size() > 1){
-                innerBlackNodes.add(i);
-
-            }
-
-        }
-
-    }
-
 
     private void addChildToVertex(Vertex parent, Vertex child) {
         child.parent = parent;
@@ -488,7 +444,7 @@ public class Spannoid extends Stoppable implements ITree {
 
     public State getState() {
         Tree firstComponent = components.iterator().next();
-        final Vertex rootVertex = firstComponent.vertex.get(0);
+        final Vertex rootVertex = firstComponent.vertex[0];
 
         int nodes = countNodes() - components.size() + 1;
         State state = new State(nodes);
@@ -616,11 +572,6 @@ public class Spannoid extends Stoppable implements ITree {
         int[] toChild = new int[length];
         int parentPos = 0;
         for (int childPos = 0; childPos < length; childPos++) {
-            if (parentPos >= toParent.length) {
-                toChild[childPos] = -(parentPos + 1);
-                parentPos++;
-            } else
-
             if (toParent[parentPos] == childPos) {
                 // Match
                 toChild[childPos] = parentPos++;
@@ -642,7 +593,7 @@ public class Spannoid extends Stoppable implements ITree {
     private int countNodes() {
         int nodes = 0;
         for (Tree component : components)
-            nodes += component.vertex.size();
+            nodes += component.vertex.length;
         return nodes;
     }
 
@@ -660,7 +611,7 @@ public class Spannoid extends Stoppable implements ITree {
         SubstitutionModel model = new Kimura3();
         SubstitutionScore ss = model.attachedScoringScheme;
 
-        Spannoid spannoid = new Spannoid(3, BonphyStrategy.TOTAL_LENGTH, seqs, names, model, ss);
+        Spannoid spannoid = new Spannoid(seqs, names, model, ss);
         System.out.println("Log-like of spannoid: " + spannoid.getLogLike());
 
         /*
@@ -698,9 +649,20 @@ public class Spannoid extends Stoppable implements ITree {
             i++;
         }
         */
+
+        for (int i = 0; i < 100; i++){
+            int j = Utils.generator.nextInt(spannoid.n);
+            Set<Vertex> neighborhood  = spannoid.componentConnections.get(j);
+            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]);
+            int k = Utils.generator.nextInt(overlapping_vertices.length);
+            Vertex observed = overlapping_vertices[k];
+            System.out.println(overlapping_vertices.length);
+
+        }
+
     }
 
-    public static class SpannoidUpdater extends AbstractUpdater<Spannoid> {
+    public static class SpannoidUpdater implements ITreeUpdater<Spannoid> {
         private static SteinerTreeUpdater updater = new SteinerTreeUpdater();
 
         @Override
@@ -727,170 +689,57 @@ public class Spannoid extends Stoppable implements ITree {
                 updater.recalcSubstitutionParameters(component);
         }
 
-        @Override
-        public void revertNNI(Tree tree, AbstractUpdater.NNIResult nni){
-            revertNNI(tree, nni);
-
-        }
-
+        // Returns a random spannoid component.
         public Tree getRandomComponent(Spannoid spannoid) {
             int i = Utils.generator.nextInt(spannoid.components.size());
             return spannoid.components.get(i);
         }
 
+        // Returns a random vertex (both Steiner and not)
         public Vertex getRandomVertex(Spannoid spannoid) {
             Tree component = getRandomComponent(spannoid);
-            int j = Utils.generator.nextInt(component.vertex.size());
-            return component.vertex.get(j);
+            int j = Utils.generator.nextInt(component.vertex.length);
+            return component.vertex[j];
         }
 
-        public Vertex getComponentRandomVertex(Tree component){
-            int k = Utils.generator.nextInt(component.vertex.size());
-            Vertex observed  = component.vertex.get(k);
-            while (observed.left != null || observed.right != null){
-                k = Utils.generator.nextInt(component.vertex.size());
-                observed  = component.vertex.get(k);
-            }
-            return observed;
-
-        }
-
-        public Tree getRandomNeighbouringComponent(Spannoid spannoid, Vertex source){
-            int sourceIndex = spannoid.labeledVertexIds.get(source);
-            Set<Vertex> neighborhood = spannoid.componentConnections.get(sourceIndex);
-            Vertex[] overlapping_vertices = new Vertex[neighborhood.size() - 1];
-            int i = 0;
-            for (Vertex v : neighborhood) {
-                if (v != source)
-                    overlapping_vertices[i++] = v;
-            }
-
-            // neighborhood.remove(source);
-            int k = Utils.generator.nextInt(overlapping_vertices.length); //// TODO:if neighborhood is empty now ??????
-            return overlapping_vertices[k].owner;
-
-        }
-
+        // Returns a random (black) observed sequence vertex
         public Vertex getRandomBlack(Spannoid spannoid){
             int j = Utils.generator.nextInt(spannoid.n);
             Set<Vertex> neighborhood  = spannoid.componentConnections.get(j);
-            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]);
+            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]); /// this could be bad for the performance
             int k = Utils.generator.nextInt(overlapping_vertices.length);
-            return overlapping_vertices[k];
+            Vertex observed = overlapping_vertices[k];
+            return observed;
         }
 
-
+        // TODO: some weighting to achieve a good uniform distribution.
+        // Returns a random (black) observed sequence vertex belonging to
+        // at least 2 spannoid components.
         public Vertex getRandomInnerBlack(Spannoid spannoid){
             int j = Utils.generator.nextInt(spannoid.innerBlackNodes.size());
             Integer index = spannoid.innerBlackNodes.get(j);
+            /// this neighborhood must be of size > 1.
             Set<Vertex> neighborhood = spannoid.componentConnections.get(index);
-            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]);
+            /// extract a random vertex out of this neighborhood
+            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]); /// this could be bad for the performance
             int k = Utils.generator.nextInt(overlapping_vertices.length);
-            return overlapping_vertices[k];
+            Vertex observed = overlapping_vertices[k];
+            return observed;
+        }
+
+        /// cut a piece from an inner black and paste it on a generic black.
+        public void cutAndPaste(Spannoid spannoid){
+            Vertex  old_stem = getRandomInnerBlack(spannoid);
+            Tree component = old_stem.owner;
+            Vertex new_stem = getRandomBlack(spannoid);
+            /// TODO: if new_stem = old_stem, break (or repeat until the new stem is different)
+            /// CUT and PASTE
+
+
+
+
         }
 
 
-        public void moveComponent(Spannoid spannoid, Vertex source, Vertex dest){
-
-            int vId = spannoid.labeledVertexIds.get(source);
-            spannoid.componentConnections.get(vId).remove(source);
-            int destId = spannoid.labeledVertexIds.get(dest);
-            spannoid.componentConnections.get(destId).add(source);
-
-            spannoid.labeledVertexIds.put(source, destId);
-
-            spannoid.setupInnerBlackNodes();
-
-            source.seq = dest.seq;
-            source.length = dest.length;
-            source.name = dest.name;
-            source.first = new AlignColumn(source);
-
-            AlignColumn cur = dest.first;
-            source.first.seq = cur.seq.clone();
-            AlignColumn prev = source.first;
-            cur  = cur.next;
-
-            while (cur != dest.last && cur != null){
-                AlignColumn actual = new AlignColumn(source);
-                actual.seq = cur.seq.clone();
-
-                actual.prev = prev;
-                prev.next = actual;
-                prev = actual;
-
-                cur = cur.next;
-            }
-
-            AlignColumn last = new AlignColumn(source);
-            last.prev = prev;
-            prev.next = last;
-
-            source.last = last;
-
-            AlignColumn c = source.parent.first;
-            AlignColumn n = source.first;
-            while (c != source.parent.last) {
-                if (source.parent.left == source) {
-                    /*
-                    if (n != null) {
-                        c.left = n;
-                        n.parent = c;
-                        n.orphan = false;
-                    } else */
-                        c.left = null;
-                } else {
-                    /* if (n != null) {
-                        c.right = n;
-                        n.parent = c;
-                        n.orphan = false;
-                    } else */
-                        c.right = null;
-                }
-
-                c = c.next;
-                if (n != null)
-                    n = n.next;
-            }
-
-            source.last.parent = source.parent.last;
-            source.last.orphan = false;
-
-            if (source.parent.left == source)
-                source.parent.last.left = source.last;
-            else
-                source.parent.last.right = source.last;
-
-            source.fullWin();
-            source.parent.fullWin();
-            source.brother().fullWin();
-
-            source.setAllAlignColumnsUnselected();
-            source.parent.setAllAlignColumnsUnselected();
-            source.brother().setAllAlignColumnsUnselected();
-
-            source.hmm2AlignWithSave();
-            source.parent.hmm3AlignWithSave();
-            if (source.parent.parent != null)
-                source.parent.hmm2AlignWithSave();
-
-            // source.hmm2AlignWithSave();
-            source.calcAllUp();
-        }
-
-        public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
-            List<Vertex> destSet = new ArrayList<Vertex>();
-            Set<Vertex> connected = spannoid.componentConnections.get(spannoid.labeledVertexIds.get(source));
-            for (Vertex con : connected) {
-                if (con != source) {
-                    for (Vertex v : con.owner.vertex) {
-                        if (v != con && v.name != null)
-                            destSet.add(v);
-                    }
-                }
-            }
-            int k = Utils.generator.nextInt(destSet.size());
-            return destSet.get(k);
-        }
     }
 }
