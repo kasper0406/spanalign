@@ -400,26 +400,13 @@ public class Spannoid extends Stoppable implements ITree {
     }
 
     private double probOfSequence(Vertex vertex) {
-        double r = vertex.owner.hmm2.params[0];
-        double lambda = vertex.owner.hmm2.params[1];
-        double mu = vertex.owner.hmm2.params[2];
-        String sequence = vertex.sequence();
-        final int n = sequence.length();
+        double logProb = 0;
 
-        double prob = 0;
-        /*
-        if (n == 0)
-            prob = Math.log(1 - lambda / mu);
-        else
-            prob = Math.log(1 - lambda / mu) + Math.log(lambda / mu)
-                + Math.log(1 - r)
-                + (n - 1) * (Math.log((lambda / mu) * (1 - r) + r));
-        */
+        for (AlignColumn column = vertex.first; column != vertex.last; column = column.next) {
+            logProb += Math.log(Utils.calcEmProb(column.seq, substitutionModel.e));
+        }
 
-        // TODO: Consider generalizing this!
-        prob += n * Math.log((double)1 / 4);
-
-        return prob;
+        return logProb;
     }
 
     public double getLogLike() {
