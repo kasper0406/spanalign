@@ -1,5 +1,13 @@
 package statalign.base;
 
+/**
+ * !!!ATTENTION!!!
+ *
+ * TOPOLOGY CHANGE ACCEPTANCE RATE PROBABLY NOT CORRECT!
+ *
+ * !!!ATTENTION!!!
+ */
+
 public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spannoid.SpannoidUpdater> {
     public SpannoidMCMCStrategy(Spannoid spannoid) {
         super(spannoid, new Spannoid.SpannoidUpdater());
@@ -35,6 +43,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
         double newLogLi = tree.getLogLike();
 
+        // TODO: INCORRECT ACCEPTANCE RATE
         if (Math.log(Utils.generator.nextDouble()) < bpp
                 + (newLogLi - oldLogLi) * tree.getHeat()) {
             return true;
@@ -45,25 +54,36 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         }
     }
 
-    /*
-    @Override
-    public boolean sampleIndelParameter() {
-        return super.sampleIndelParameter();    //To change body of overridden methods use File | Settings | File Templates.
+    private boolean sampleContract() {
+        return false;
     }
-    */
+
+    private boolean sampleExpand() {
+        return false;
+    }
+
+    private boolean sampleSplitMergeComponents() {
+        switch (Utils.generator.nextInt(2)) {
+            case 0:
+                return sampleContract();
+            case 1:
+                return sampleExpand();
+        }
+        return false;
+    }
 
     @Override
     public boolean sampleTopology() {
         int j = Utils.generator.nextInt(3);
         switch (j) {
             case 0:
-                // return sampleInnerTopology();
-                return false;
+                return sampleInnerTopology();
             case 1:
                 return sampleMoveComponents();
-            default:
-                return false;
+            case 2:
+                return sampleSplitMergeComponents();
         }
+        return false;
     }
 
     @Override

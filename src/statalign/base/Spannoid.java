@@ -651,6 +651,7 @@ public class Spannoid extends Stoppable implements ITree {
     }
 
     public static void main(String[] args) throws Exception {
+        /*
         String[] seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AGACA", "TTGACC", "GTAC" };
         String[] names = new String[] { "A", "B", "C", "D", "E", "F" };
 
@@ -662,12 +663,20 @@ public class Spannoid extends Stoppable implements ITree {
 
         Spannoid spannoid = new Spannoid(3, BonphyStrategy.TOTAL_LENGTH, seqs, names, model, ss);
         System.out.println("Log-like of spannoid: " + spannoid.getLogLike());
+        */
 
-        /*
+        SpannoidUpdater updater = new SpannoidUpdater();
+
         // String tree = "((B:0.5,C:0.5):0.5)A;";
         // String tree = "((A:0.5,B:0.2):1,(D:1,E:0.2):1)C;";
-        String tree = "((D:0.1,(F:0.1,(E:0.2,C:0.05):0.2)B:0.1):0.2)A;";
-        String[] seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AGACA", "TTGACC", "GTAC" };
+        //String tree = "((D:0.1,(F:0.1,(E:0.2,C:0.05):0.2)B:0.1):0.2)A;";
+
+        // String tree = "((B:0.1,((C:0.1,D:0.1):0.1,(G:0.1,(E:0.1,F:0.1):0.1):0.1):0.1):0.1)A;";
+        // String tree = "(((B:0.1,((C:0.1,D:0.1):0.1,((E:0.1,F:0.1):0.1)G:0.1):0.1):0.1)A;";
+
+        String tree = "((B:1,(C:1,(D:1,(E:1,(F:1,G:1):1):1):1):1):1)A:1;";
+
+        String[] seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AG", "TTGACCAAGC", "G", "ACGGGACTCCAGT" };
         Map<String, Integer> nameMap = new HashMap<String, Integer>();
         for (int i = 0; i < seqs.length; i++)
             nameMap.put("" + (char)((int)'A' + i), i);
@@ -678,6 +687,18 @@ public class Spannoid extends Stoppable implements ITree {
         Spannoid spannoid = new Spannoid(tree, seqs, nameMap, model, ss);
         System.out.println(String.format("Log-like: %f", spannoid.getLogLike()));
 
+        // Find vertex named A
+        Vertex gVertex = null;
+        for (Vertex v : spannoid.components.get(0).vertex) {
+            if ("G".equals(v.name)) {
+                gVertex = v;
+                break;
+            }
+        }
+
+        System.out.println("Break!");
+
+        /*
         // Print alignments
         for (Tree component : spannoid.components) {
             System.out.println();
@@ -696,8 +717,7 @@ public class Spannoid extends Stoppable implements ITree {
             String name = (state.name[i].isEmpty()) ? "-" : state.name[i];
             System.out.println(String.format("%s:\t%s", name, seq));
             i++;
-        }
-        */
+        } */
     }
 
     public static class SpannoidUpdater extends AbstractUpdater<Spannoid> {
@@ -729,8 +749,7 @@ public class Spannoid extends Stoppable implements ITree {
 
         @Override
         public void revertNNI(Tree tree, AbstractUpdater.NNIResult nni){
-            revertNNI(tree, nni);
-
+            super.revertNNI(tree, nni);
         }
 
         public Tree getRandomComponent(Spannoid spannoid) {
@@ -787,6 +806,21 @@ public class Spannoid extends Stoppable implements ITree {
             Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]);
             int k = Utils.generator.nextInt(overlapping_vertices.length);
             return overlapping_vertices[k];
+        }
+
+        public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
+            List<Vertex> destSet = new ArrayList<Vertex>();
+            Set<Vertex> connected = spannoid.componentConnections.get(spannoid.labeledVertexIds.get(source));
+            for (Vertex con : connected) {
+                if (con != source) {
+                    for (Vertex v : con.owner.vertex) {
+                        if (v != con && v.name != null)
+                            destSet.add(v);
+                    }
+                }
+            }
+            int k = Utils.generator.nextInt(destSet.size());
+            return destSet.get(k);
         }
 
         public Vertex getConnection(Spannoid spannoid, Vertex vertex) {
@@ -872,19 +906,351 @@ public class Spannoid extends Stoppable implements ITree {
             return bpp;
         }
 
-        public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
-            List<Vertex> destSet = new ArrayList<Vertex>();
-            Set<Vertex> connected = spannoid.componentConnections.get(spannoid.labeledVertexIds.get(source));
-            for (Vertex con : connected) {
-                if (con != source) {
-                    for (Vertex v : con.owner.vertex) {
-                        if (v != con && v.name != null)
-                            destSet.add(v);
-                    }
+        /**
+         * Swaps the alignment between child and parent.
+         * @param child
+         * @param parent Parent needs to be parent of child!
+         */
+        private void swapAlignment(Vertex child, Vertex parent) {
+            // Realign cur and parent
+            AlignColumn acNewLeaf = parent.first;
+            AlignColumn acNewParent = child.first;
+            while (acNewLeaf != parent.last || acNewParent != child.last) {
+                if (acNewParent.parent != acNewLeaf) {           // Deletion     (* -)   -> Insertion    (- *)
+                    AlignColumn ins = new AlignColumn(parent);
+                    acNewLeaf.next.prev = ins;
+                    ins.next = acNewLeaf.next;
+                    acNewLeaf.next = ins;
+                    ins.prev = acNewLeaf;
+
+                    acNewLeaf = ins.next;
+                } else if (acNewParent.orphan) {                 // Insertion    (- *)   -> Deletion     (* -)
+                    AlignColumn tmp = acNewParent.prev;
+                    tmp.next = acNewParent.next;
+                    acNewParent.next.prev = tmp;
+
+                    acNewParent = acNewParent.next;
+                } else {                                         // Substitution (* *)   -> Substitution (* *)
+                    acNewLeaf.parent = acNewParent;
+                    acNewParent.parent = null;
+
+                    if (acNewParent.left == null)
+                        acNewParent.left = acNewLeaf;
+                    else if (acNewParent.right == null)
+                        acNewParent.right = acNewLeaf;
+                    else
+                        throw new RuntimeException("We fucked up!");
+
+                    // TODO: Consider left, right child!!!
+
+                    acNewLeaf = acNewLeaf.next;
+                    acNewParent = acNewParent.next;
                 }
             }
-            int k = Utils.generator.nextInt(destSet.size());
-            return destSet.get(k);
+        }
+
+        private Tree createEmptyComponent(SubstitutionModel model) {
+            Tree tree = new Tree();
+            tree.substitutionModel = model;
+            tree.hmm2 = new HmmTkf92(null);
+            tree.hmm3 = new HmmNonParam();
+
+            return tree;
+        }
+
+        /**
+         * (actual -> guide -> reference) --> (actual -> reference)
+         * @param actual The node to be aligned.
+         * @param guide The guide node describing alignment between actual and reference.
+         * @param reference The reference alignment.
+         */
+        private void alignAlignment(Vertex actual, Vertex guide, Vertex reference) {
+            AlignColumn actualAC = actual.first;
+            AlignColumn guideAC = guide.first;
+            AlignColumn referenceAC = reference.first;
+
+            // TODO: Update left, right pointers!!!
+            while (actualAC != actual.last || guideAC != guide.last || referenceAC != reference.last) {
+                if (actualAC.parent == guideAC && guideAC.parent == referenceAC) {
+                    // Substitution (* * *) -> Substitution (* *)
+                    actualAC.parent = referenceAC;
+
+                    if (referenceAC.left == guideAC)
+                        referenceAC.left = actualAC;
+                    else
+                        referenceAC.right = actualAC;
+
+                    actualAC = actualAC.next;
+                    guideAC = guideAC.next;
+                    referenceAC = referenceAC.next;
+                } else if (actualAC.orphan) {
+                    // (* - -) -> (* -)
+                    actualAC.parent = referenceAC;
+
+                    actualAC = actualAC.next;
+                } else if (actualAC.parent == guideAC && guideAC.orphan) {
+                    // (* * -) -> (* -)        """"?
+                    actualAC.parent = referenceAC;
+                    actualAC.orphan = true;
+
+                    actualAC = actualAC.next;
+                    guideAC = guideAC.next;
+                } else if (guideAC.parent == referenceAC && actualAC.parent != guideAC) {
+                    // (- * *) -> (- *)
+                    if (referenceAC.left == guideAC)
+                        referenceAC.left = null;
+                    else
+                        referenceAC.right = null;
+
+                    guideAC = guideAC.next;
+                    referenceAC = referenceAC.next;
+                } else if (guideAC.parent != referenceAC) {
+                    // (- - *) -> (- *)
+                    referenceAC = referenceAC.next;
+                } else {
+                    throw new RuntimeException("We fucked up!");
+                }
+            }
+        }
+
+        private void copyAlignColumn(Vertex copy, Vertex original) {
+            copy.name = original.name;
+            copy.length = original.length;
+            copy.seq = original.seq;
+
+            AlignColumn cur = original.first;
+
+            AlignColumn prev = null;
+            while (cur != null) {
+                AlignColumn ac = new AlignColumn(copy);
+                ac.orphan = cur.orphan;
+                ac.parent = cur.parent;
+                ac.emptyWindow = cur.emptyWindow;
+                ac.left = cur.left;
+                ac.right = cur.right;
+                ac.seq = cur.seq.clone();
+
+                ac.prev = prev;
+                if (prev == null)
+                    copy.first = ac;
+                else
+                    prev.next = ac;
+
+                prev = ac;
+                cur = cur.next;
+            }
+            copy.last = prev;
+        }
+
+        private void dfsCopyVertex(Vertex cur, Vertex prev, List<Vertex> vertices) {
+            boolean labeled = cur.seq != null && !cur.seq.isEmpty();
+            if (labeled)
+                vertices.add(cur);
+
+            if (cur.parent != null && cur.parent != prev)
+                dfsCopyVertex(cur.parent, cur, vertices);
+            if (cur.left != null && cur.left != prev)
+                dfsCopyVertex(cur.left, cur, vertices);
+            if (cur.right != null && cur.right != prev)
+                dfsCopyVertex(cur.right, cur, vertices);
+
+            if (!labeled)
+                vertices.add(cur);
+        }
+
+        /**
+         *
+         * @param labelRoot
+         * @param direction 0 -> left, 1 -> right
+         */
+        private void swapPath(Vertex labelRoot, boolean[] direction) {
+            Vertex parent = labelRoot;
+            for (boolean d : direction) {
+                Vertex child = d ? parent.right : parent.left;
+
+                swapAlignment(child, parent);
+
+                if (child.right == null) {
+                    child.right = parent;
+                } else if (child.left == null) {
+                    child.left = parent;
+                } else {
+                    throw new RuntimeException("We fucked up!");
+                }
+                parent.parent = child;
+
+                parent = child;
+            }
+        }
+
+        /**
+         * @param spannoid The Spannoid
+         * @param steiner A Steiner node in a component of the Spannoid.
+         * @param labeled A labeled node adjacent to steiner which should be contracted onto steiner.
+         * @return The back-proposal of the move.
+         */
+        public double contractEdge(Spannoid spannoid, Vertex steiner, Vertex labeled) {
+            /*
+             * Parent Component
+             */
+            Tree parentComponent = createEmptyComponent(spannoid.getSubstitutionModel());
+            Vertex parentLeaf = new Vertex(parentComponent, steiner.edgeLength + labeled.edgeLength / 2);
+            copyAlignColumn(parentLeaf, labeled);
+            alignAlignment(parentLeaf, steiner, steiner.parent);
+
+            // Copy vertices to new component
+            parentComponent.vertex.add(parentLeaf);
+            dfsCopyVertex(steiner.parent, steiner, parentComponent.vertex);
+
+            parentLeaf.parent = steiner.parent;
+            if (steiner.parent.left == steiner) {
+                steiner.parent.left = parentLeaf;
+            } else {
+                steiner.parent.right = parentLeaf;
+            }
+
+            // Find the root
+            Vertex root = parentLeaf;
+            while (root.parent != null)
+                root = root.parent;
+            parentComponent.root = root;
+
+            /*
+             * Child Component
+             */
+            Vertex subTree = labeled.brother();
+            Tree childComponent = createEmptyComponent(spannoid.getSubstitutionModel());
+            Vertex childLeaf = new Vertex(childComponent, subTree.edgeLength + labeled.edgeLength / 2);
+            copyAlignColumn(childLeaf, labeled);
+            // reverseAlignment(labeled, steiner);
+
+            return 0.0;
+        }
+
+
+
+        private void foobar(Vertex v) {
+            AlignColumn ac = v.first;
+            AlignColumn p = v.parent.first;
+
+            while (ac != v.last || p != v.parent.last) {
+                if (ac.parent == p) { // Substitution
+                    ac.parent = p;
+                    p.left = ac;
+                } else if (ac.orphan) { // Insertion (- *) -> (* -)
+
+                } else { // Deletion
+
+                }
+            }
+        }
+
+
+
+        /**
+         * @param spannoid The Spannoid
+         * @param steiner A Steiner node in a component of the Spannoid.
+         * @param labeled A labeled node adjacent to steiner which should be contracted onto steiner.
+         * @return The back-proposal of the move.
+         */
+        /*
+        public double contractEdge(Spannoid spannoid, Vertex steiner, Vertex labeled) {
+            Tree component = steiner.owner;
+
+            // Remove the old component
+            spannoid.components.remove(component);
+
+            // Create <= 3 new components
+
+
+            return 0.0; // TODO: Find correct bpp
+        }       */
+
+        private Set<Tree> splitComponent(Spannoid spannoid, Vertex steiner, Vertex labeled) {
+            // TODO: Add some code...
+
+            return null;
+        }
+
+        private Vertex traverse(Spannoid spannoid, Tree newComponent, Vertex prev, Vertex cur) {
+            if (cur == null) return null;
+
+            if (cur.left == null && cur.right == null) {
+                // Leaf node
+                return cur;
+            }
+
+            Vertex p = null, l = null, r = null;
+            if (cur.parent != prev)
+                p = traverse(spannoid, newComponent, cur, cur.parent);
+            if (cur.left != prev)
+                l = traverse(spannoid, newComponent, cur, cur.left);
+            if (cur.right != prev)
+                r = traverse(spannoid, newComponent, cur, cur.right);
+
+            cur.owner = newComponent;
+
+            if (cur.parent == null) { // Fake root vertex
+                l.parent = prev;
+
+                // Align to new parent
+
+
+                return l;
+            }
+
+            // Reassign labeles s.t. only l and r are specified.
+            if (p == null) {
+                // The entire subtree is as it should be. Just update some pointers.
+                return cur;
+            } else {
+                if (l == null)
+                    cur.left = p;
+                else if (r == null)
+                    cur.right = p;
+                else
+                    throw new RuntimeException("Should not happen!");
+
+                // Parent goes to left side
+                cur.parent.parent = cur;
+                cur.parent = prev;
+
+                // Realign cur and parent
+                AlignColumn acNewLeaf = p.first;
+                AlignColumn acNewParent = cur.first;
+                while (acNewLeaf != p.last || acNewParent != cur.last) {
+                    if (acNewParent.parent != acNewLeaf) {           // Deletion     (* -)   -> Insertion    (- *)
+                        AlignColumn ins = new AlignColumn(p);
+                        acNewLeaf.next.prev = ins;
+                        ins.next = acNewLeaf.next;
+                        acNewLeaf.next = ins;
+                        ins.prev = acNewLeaf;
+
+                        acNewLeaf = ins.next;
+                    } else if (acNewParent.orphan) {                 // Insertion    (- *)   -> Deletion     (* -)
+                        AlignColumn tmp = acNewParent.prev;
+                        tmp.next = acNewParent.next;
+                        acNewParent.next.prev = tmp;
+
+                        acNewParent = acNewParent.next;
+                    } else {                                         // Substitution (* *)   -> Substitution (* *)
+                        AlignColumn tmp = acNewLeaf.parent;
+                        acNewLeaf.parent = acNewParent;
+                        acNewParent.parent = tmp;
+
+                        acNewLeaf = acNewLeaf.next;
+                        acNewParent = acNewParent.next;
+                    }
+                }
+
+                // Recalculate felsen
+                p.calcFelsen();
+                p.calcOrphan();
+                cur.calcFelsen();
+                cur.calcOrphan();
+
+                return cur;
+            }
         }
     }
 }
