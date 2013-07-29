@@ -7,6 +7,7 @@ import statalign.base.thread.StoppedException;
 import statalign.model.score.SubstitutionScore;
 import statalign.model.subst.SubstitutionModel;
 import statalign.model.subst.plugins.Kimura3;
+import statalign.postprocess.plugins.SpannoidViewer;
 import statalign.postprocess.plugins.TreeNode;
 import statalign.postprocess.utils.NewickParser;
 import sun.misc.IOUtils;
@@ -676,7 +677,7 @@ public class Spannoid extends Stoppable implements ITree {
 
         String tree = "((B:1,(C:1,(D:1,(E:1,(F:1,G:1):1):1):1):1):1)A:1;";
 
-        String[] seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AG", "TTGACCAAGC", "G", "ACGGGACTCCAGT" };
+        String[] seqs = new String[] { "AAGT", "CGATTC", "CCGAAG", "AG", "TTGACCAAGC", "G", "ACGGT" };
         Map<String, Integer> nameMap = new HashMap<String, Integer>();
         for (int i = 0; i < seqs.length; i++)
             nameMap.put("" + (char)((int)'A' + i), i);
@@ -688,15 +689,20 @@ public class Spannoid extends Stoppable implements ITree {
         System.out.println(String.format("Log-like: %f", spannoid.getLogLike()));
 
         // Find vertex named A
-        Vertex gVertex = null;
+        Vertex testVertex = null;
         for (Vertex v : spannoid.components.get(0).vertex) {
-            if ("G".equals(v.name)) {
-                gVertex = v;
+            if ("D".equals(v.name)) {
+                testVertex = v;
                 break;
             }
         }
 
-        System.out.println("Break!");
+        SpannoidViewer viewer = new SpannoidViewer();
+        viewer.newSample(spannoid.getState(), 0, 0);
+
+        updater.contractEdge(spannoid, testVertex.parent, testVertex);
+
+        viewer.newSample(spannoid.getState(), 0, 0);
 
         /*
         // Print alignments
@@ -911,42 +917,38 @@ public class Spannoid extends Stoppable implements ITree {
          * @param child
          * @param parent Parent needs to be parent of child!
          */
-        private void swapAlignment(Vertex child, Vertex parent) {
+        private void swapAlignment(Vertex child, Vertex parent, boolean addToLeft) {
             // Realign cur and parent
             AlignColumn acNewLeaf = parent.first;
             AlignColumn acNewParent = child.first;
             while (acNewLeaf != parent.last || acNewParent != child.last) {
                 if (acNewParent.parent != acNewLeaf) {           // Deletion     (* -)   -> Insertion    (- *)
-                    AlignColumn ins = new AlignColumn(parent);
-                    acNewLeaf.next.prev = ins;
-                    ins.next = acNewLeaf.next;
-                    acNewLeaf.next = ins;
-                    ins.prev = acNewLeaf;
+                    acNewLeaf.parent = acNewParent;
+                    acNewLeaf.orphan = true;
 
-                    acNewLeaf = ins.next;
+                    acNewLeaf = acNewLeaf.next;
                 } else if (acNewParent.orphan) {                 // Insertion    (- *)   -> Deletion     (* -)
-                    AlignColumn tmp = acNewParent.prev;
-                    tmp.next = acNewParent.next;
-                    acNewParent.next.prev = tmp;
+                    acNewParent.orphan = false;
+                    acNewParent.parent = null; // TODO: Should be set somewhere...
 
                     acNewParent = acNewParent.next;
                 } else {                                         // Substitution (* *)   -> Substitution (* *)
+                    // AlignColumn oldParent = acNewLeaf.parent;
                     acNewLeaf.parent = acNewParent;
                     acNewParent.parent = null;
 
-                    if (acNewParent.left == null)
+                    if (addToLeft)
                         acNewParent.left = acNewLeaf;
-                    else if (acNewParent.right == null)
-                        acNewParent.right = acNewLeaf;
                     else
-                        throw new RuntimeException("We fucked up!");
-
-                    // TODO: Consider left, right child!!!
+                        acNewParent.right = acNewLeaf;
 
                     acNewLeaf = acNewLeaf.next;
                     acNewParent = acNewParent.next;
                 }
             }
+
+            parent.last.parent = child.last;
+            child.last.parent = null;
         }
 
         private Tree createEmptyComponent(SubstitutionModel model) {
@@ -1011,6 +1013,8 @@ public class Spannoid extends Stoppable implements ITree {
                     throw new RuntimeException("We fucked up!");
                 }
             }
+
+            actual.last.parent = reference.last;
         }
 
         private void copyAlignColumn(Vertex copy, Vertex original) {
@@ -1028,7 +1032,8 @@ public class Spannoid extends Stoppable implements ITree {
                 ac.emptyWindow = cur.emptyWindow;
                 ac.left = cur.left;
                 ac.right = cur.right;
-                ac.seq = cur.seq.clone();
+                if (cur.seq != null)
+                    ac.seq = cur.seq.clone();
 
                 ac.prev = prev;
                 if (prev == null)
@@ -1059,28 +1064,126 @@ public class Spannoid extends Stoppable implements ITree {
         }
 
         /**
-         *
+         * Swaps the path starting from the labeled root and down guided by the direction array.
          * @param labelRoot
          * @param direction 0 -> left, 1 -> right
          */
         private void swapPath(Vertex labelRoot, boolean[] direction) {
+            if (direction.length == 0) return;
+
             Vertex parent = labelRoot;
-            for (boolean d : direction) {
-                Vertex child = d ? parent.right : parent.left;
+            Vertex child = direction[0] ? parent.right : parent.left;
 
-                swapAlignment(child, parent);
+            for (int i = 0; i < direction.length; i++) {
+                Vertex nextChild = direction[i+1] ? child.right : child.left;
+                swapAlignment(child, parent, !direction[i]);
 
-                if (child.right == null) {
-                    child.right = parent;
-                } else if (child.left == null) {
-                    child.left = parent;
-                } else {
-                    throw new RuntimeException("We fucked up!");
-                }
                 parent.parent = child;
+                if (direction[i])
+                    child.right = parent;
+                else
+                    child.left = parent;
 
                 parent = child;
+                child = nextChild;
             }
+        }
+
+        /**
+         *
+         * @param component
+         * @param where Where to place the new fake root.
+         */
+        private void rerootComponent(Tree component, Vertex where) {
+            List<Boolean> directions = new LinkedList<Boolean>();
+            Vertex oldParent = where;
+            while (oldParent.parent != null) {
+                if (oldParent.parent.left == oldParent)
+                    directions.add(false);
+                else if (oldParent.parent.right == oldParent)
+                    directions.add(true);
+                else
+                    throw new RuntimeException("Something horrible happened!");
+
+                oldParent = oldParent.parent;
+            }
+            Collections.reverse(directions); // Get directions ordered from (current) parent to child.
+
+            // Convert from list to array representation.
+            // This is required since Java auto-unboxing is crap.
+            int i = 0;
+            boolean[] directionsArray = new boolean[directions.size()];
+            for (boolean b : directions)
+                directionsArray[i++] = b;
+
+            Vertex leftSubtree = where.parent;
+
+            // oldParent is labeled root node
+            makeFakeAlignment(oldParent.left);
+            oldParent.fullWin();
+            oldParent.left.fullWin();
+            oldParent.updateHmmMatrices(); // TODO: Consider if updating HMM matrices is necessary
+            oldParent.left.updateHmmMatrices();
+            oldParent.left.hmm2AlignWithSave();
+
+            // Swap the alignment and pointers from the root to the 'where' vertex.
+            swapPath(oldParent, directionsArray);
+
+            Vertex newRoot = new Vertex(component, 0.0);
+            newRoot.left = leftSubtree;
+            newRoot.right = where;
+
+            leftSubtree.parent = newRoot;
+            where.parent = newRoot;
+
+            component.root = newRoot;
+            component.vertex.add(newRoot);
+
+            drawNewAlignment(newRoot);
+        }
+
+        private void makeFakeAlignment(Vertex vertex) {
+            AlignColumn fake = new AlignColumn(vertex);
+            vertex.first = fake;
+            vertex.last = fake;
+
+            // Null check are required because of labeled root node at intermediate representation.
+            if (vertex.left != null) {
+                AlignColumn ac = vertex.left.first;
+                while (ac != vertex.left.last) {
+                    ac.orphan = true;
+                    ac.parent = fake;
+                    ac = ac.next;
+                }
+                ac.parent = fake;
+                fake.left = ac;
+            }
+
+            if (vertex.right != null) {
+                AlignColumn ac = vertex.right.first;
+                while (ac != vertex.right.last) {
+                    ac.orphan = true;
+                    ac.parent = fake;
+                    ac = ac.next;
+                }
+                ac.parent = fake;
+                fake.right = ac;
+            }
+        }
+
+        private void drawNewAlignment(Vertex vertex) {
+            makeFakeAlignment(vertex);
+
+            vertex.left.fullWin();
+            vertex.right.fullWin();
+            vertex.fullWin();
+
+            // TODO: Consider if this is necessary
+            vertex.updateHmmMatrices();
+            vertex.updateHmmMatrices();
+            vertex.updateHmmMatrices();
+
+            vertex.hmm3AlignWithSave();
         }
 
         /**
@@ -1121,13 +1224,34 @@ public class Spannoid extends Stoppable implements ITree {
             Vertex subTree = labeled.brother();
             Tree childComponent = createEmptyComponent(spannoid.getSubstitutionModel());
             Vertex childLeaf = new Vertex(childComponent, subTree.edgeLength + labeled.edgeLength / 2);
+            childLeaf.left = subTree;
+            subTree.parent = childLeaf;
             copyAlignColumn(childLeaf, labeled);
-            // reverseAlignment(labeled, steiner);
+            dfsCopyVertex(subTree, labeled.parent, childComponent.vertex);
+
+            rerootComponent(childComponent, subTree.right.left); // TODO: Root at random vertex
+
+            childLeaf.left = null;
+
+            // Update Spannoid information
+            spannoid.components.remove(steiner.owner);
+            spannoid.components.add(parentComponent);
+            spannoid.components.add(childComponent);
+
+            int id = spannoid.labeledVertexIds.get(labeled);
+            Set<Vertex> connections = spannoid.componentConnections.get(id);
+            connections.remove(labeled);
+            connections.add(parentLeaf);
+            connections.add(childLeaf);
+
+            spannoid.labeledVertexIds.remove(labeled);
+            spannoid.labeledVertexIds.put(parentLeaf, id);
+            spannoid.labeledVertexIds.put(childLeaf, id);
+
+            spannoid.setupInnerBlackNodes();
 
             return 0.0;
         }
-
-
 
         private void foobar(Vertex v) {
             AlignColumn ac = v.first;
@@ -1251,6 +1375,112 @@ public class Spannoid extends Stoppable implements ITree {
 
                 return cur;
             }
+        }
+
+        /**
+         * Return a dot representation of the AlignColumns of Vertex v relative to its parent.
+         */
+        public String printAlignColumns(Vertex v) {
+            StringBuilder builder = new StringBuilder();
+            builder.append("digraph ac {");
+            builder.append("rankdir=LR; node [shape=Mrecord]; edge [tailclip=false];");
+
+            int nameIndex = 0;
+            Map<AlignColumn, String> nameMap = new HashMap<AlignColumn, String>();
+
+            builder.append("{ rank=same; ");
+
+            AlignColumn ac = v.first;
+            while (ac != null) {
+                String name;
+                if (!nameMap.containsKey(ac)) {
+                    name = "AC" + nameIndex++;
+                    nameMap.put(ac, name);
+                } else {
+                    name = nameMap.get(ac);
+                }
+
+                char symbol = '-';
+                if (ac != v.last) {
+                    if (ac.seq == null)
+                        symbol = '*';
+                    else
+                        symbol = ac.mostLikely();
+                }
+
+                String orphan = "";
+                if (ac.orphan)
+                    orphan = ",fillcolor=snow2,style=filled";
+
+                builder.append("\"" + name + "\" [label=\"{ <prev> | <data> " + symbol + " | <next> }\"" + orphan + "];");
+
+                ac = ac.next;
+            }
+
+            builder.append("}");
+            builder.append("{ rank=same; ");
+
+            AlignColumn parentAC = v.parent.first;
+            while (parentAC != null) {
+                String name;
+                if (!nameMap.containsKey(parentAC)) {
+                    name = "parentAC" + nameIndex++;
+                    nameMap.put(parentAC, name);
+                } else {
+                    name = nameMap.get(parentAC);
+                }
+
+                char symbol = '-';
+                if (parentAC != v.parent.last) {
+                    if (parentAC.seq == null)
+                        symbol = '*';
+                    else
+                        symbol = parentAC.mostLikely();
+                }
+
+                String orphan = "";
+                if (parentAC.orphan)
+                    orphan = ",fillcolor=snow2,style=filled";
+
+                builder.append("\"" + name + "\" [label=\"{ <prev> | <data> " + symbol + " | <next> }\"" + orphan + "];");
+
+                parentAC = parentAC.next;
+            }
+            builder.append("}");
+
+            ac = v.first;
+            while (ac != null) {
+                if (ac.prev!= null) {
+                    builder.append("\"" + nameMap.get(ac.prev) + "\":next:c -> \"" + nameMap.get(ac) + "\":data [arrowhead=vee, arrowtail=dot, dir=both];");
+                }
+
+                if (ac.next != null) {
+                    builder.append("\"" + nameMap.get(ac.next) + "\":prev:c -> \"" + nameMap.get(ac) + "\":data [arrowhead=vee, arrowtail=dot, dir=both];");
+                }
+
+                if (ac.parent != null) {
+                    builder.append("\"" + nameMap.get(ac) + "\":data -> \"" + nameMap.get(ac.parent) + "\":data [arrowhead=vee, arrowtail=none, dir=both];");
+                }
+
+                ac = ac.next;
+            }
+
+            parentAC = v.first.parent;
+            while (parentAC != null) {
+                if (parentAC.prev != null) {
+                    builder.append("\"" + nameMap.get(parentAC.prev) + "\":next:c -> \"" + nameMap.get(parentAC) + "\":data [arrowhead=vee, arrowtail=dot, dir=both];");
+                }
+
+                if (parentAC.next != null) {
+                    builder.append("\"" + nameMap.get(parentAC.next) + "\":prev:c -> \"" + nameMap.get(parentAC) + "\":data [arrowhead=vee, arrowtail=dot, dir=both];");
+                }
+
+                parentAC = parentAC.next;
+            }
+
+            builder.append("}");
+
+            return builder.toString();
         }
     }
 }
