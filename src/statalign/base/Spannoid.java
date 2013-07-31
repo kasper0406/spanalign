@@ -10,9 +10,12 @@ import statalign.model.subst.plugins.Kimura3;
 import statalign.postprocess.plugins.SpannoidViewer;
 import statalign.postprocess.plugins.TreeNode;
 import statalign.postprocess.utils.NewickParser;
+import sun.misc.IOUtils;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.util.*;
 
 public class Spannoid extends Stoppable implements ITree {
@@ -711,8 +714,7 @@ public class Spannoid extends Stoppable implements ITree {
             String name = (state.name[i].isEmpty()) ? "-" : state.name[i];
             System.out.println(String.format("%s:\t%s", name, seq));
             i++;
-        }
-        */
+        } */
     }
 
     public static class SpannoidUpdater extends AbstractUpdater<Spannoid> {
@@ -801,21 +803,6 @@ public class Spannoid extends Stoppable implements ITree {
             Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]);
             int k = Utils.generator.nextInt(overlapping_vertices.length);
             return overlapping_vertices[k];
-        }
-
-        public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
-            List<Vertex> destSet = new ArrayList<Vertex>();
-            Set<Vertex> connected = spannoid.componentConnections.get(spannoid.labeledVertexIds.get(source));
-            for (Vertex con : connected) {
-                if (con != source) {
-                    for (Vertex v : con.owner.vertex) {
-                        if (v != con && v.name != null)
-                            destSet.add(v);
-                    }
-                }
-            }
-            int k = Utils.generator.nextInt(destSet.size());
-            return destSet.get(k);
         }
 
         public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
@@ -1706,13 +1693,25 @@ public class Spannoid extends Stoppable implements ITree {
                 if (parentAC.next != null) {
                     builder.append("\"" + nameMap.get(parentAC.next) + "\":prev:c -> \"" + nameMap.get(parentAC) + "\":data [arrowhead=vee, arrowtail=dot, dir=both];");
                 }
-
                 parentAC = parentAC.next;
             }
 
             builder.append("}");
 
             return builder.toString();
+        }
+
+        public Vertex getLabeledNodeForContractions(Spannoid spannoid) {
+            int iterations = 0;
+            Vertex node = null;
+            do {
+                node = getRandomBlack(spannoid);
+            } while (node.owner.vertex.size() <= 3 && ++iterations < 10);
+
+            if (node.owner.vertex.size() <= 3)
+                return null;
+            else
+                return node;
         }
     }
 }
