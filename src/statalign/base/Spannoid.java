@@ -523,7 +523,7 @@ public class Spannoid extends Stoppable implements ITree {
 
                     if (state.align[lookup.get(current)] != null)
                         throw new RuntimeException("Alignment set twice!");
-                    state.align[lookup.get(current)] = reverseAlign(current.left.getAlign());
+                    state.align[lookup.get(current)] = current.left.getReverseAlign();
                     state.edgeLen[lookup.get(current)] = current.left.edgeLength;
                 } else
                     queue.add(current.left);
@@ -535,7 +535,7 @@ public class Spannoid extends Stoppable implements ITree {
 
                     if (state.align[lookup.get(current)] != null)
                         throw new RuntimeException("Alignment set twice!");
-                    state.align[lookup.get(current)] = reverseAlign(current.right.getAlign());
+                    state.align[lookup.get(current)] = current.right.getReverseAlign();
                     state.edgeLen[lookup.get(current)] = current.right.edgeLength;
                 } else
                     queue.add(current.right);
@@ -582,48 +582,6 @@ public class Spannoid extends Stoppable implements ITree {
     @Override
     public SubstitutionModel getSubstitutionModel() {
         return substitutionModel;
-    }
-
-    /**
-     * Given two nodes parent and child, and given the alignment of child relative
-     * to parent as described in Vertex.getAlign(), this method returns the
-     * alignment of parent relative to child.
-     * @param toParent Alignment of child relative to parent.
-     * @return Alignment of parent relative to child.
-     */
-    private int[] reverseAlign(int[] toParent) {
-        // Find the length of the parent sequence
-        int length;
-        int lastEntry = toParent[toParent.length - 1];
-        if (lastEntry < 0)
-            length = -lastEntry;
-        else
-            length = lastEntry + 1;
-
-        int[] toChild = new int[length];
-        int parentPos = 0;
-        for (int childPos = 0; childPos < length; childPos++) {
-            if (parentPos >= toParent.length) {
-                toChild[childPos] = -(parentPos + 1);
-                parentPos++;
-            } else
-
-            if (toParent[parentPos] == childPos) {
-                // Match
-                toChild[childPos] = parentPos++;
-            } else if (toParent[parentPos] < 0) {
-                // Insertion
-
-                // TODO: Consider if this is always okay!
-                childPos--;
-                parentPos++;
-            } else {
-                // Deletion
-                toChild[childPos] = -(parentPos + 1);
-            }
-        }
-
-        return toChild;
     }
 
     private int countNodes() {

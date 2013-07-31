@@ -2336,26 +2336,44 @@ public class Vertex {
      * length as the sequence in this vertex.
      */
     int[] getAlign() {
-        int[] align = new int[length];
-        Vertex vp = parent;
-        if (vp != null) {
-            AlignColumn c = first, p = vp.first;
-            int cn = 0, pn = 0;
-            while (c != last || p != vp.last) {
-                if (c.parent != p) {            // deletion (* -)
-                    pn++;
-                    p = p.next;
-                } else if (c.orphan) {        // insertion (- *)
-                    align[cn] = -pn - 1;
-                    cn++;
-                    c = c.next;
-                } else {                    // substitution (* *)
-                    align[cn] = pn;
-                    pn++;
-                    p = p.next;
-                    cn++;
-                    c = c.next;
+        return getAlign(false);
+    }
+
+    int[] getReverseAlign() {
+        return getAlign(true);
+    }
+
+    private int[] getAlign(boolean reverse) {
+        if (parent == null && !reverse) {
+            return new int[length];
+        }
+
+        int[] align = new int[reverse ? parent.length : length];
+        AlignColumn c = first, p = parent.first;
+        int cn = 0, pn = 0;
+        while (c != last || p != parent.last) {
+            if (c.parent != p) {            // deletion (* -)
+                if (reverse) {
+                    align[pn] = -cn - 1;
                 }
+                pn++;
+                p = p.next;
+            } else if (c.orphan) {        // insertion (- *)
+                if (!reverse) {
+                    align[cn] = -pn - 1;
+                }
+                cn++;
+                c = c.next;
+            } else {                    // substitution (* *)
+                if (reverse) {
+                    align[pn] = cn;
+                } else {
+                    align[cn] = pn;
+                }
+                pn++;
+                p = p.next;
+                cn++;
+                c = c.next;
             }
         }
         return align;
