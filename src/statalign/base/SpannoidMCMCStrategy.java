@@ -31,7 +31,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         Vertex prev = updater.getConnection(tree, source);
         Vertex dest = updater.getDestinationFromSourceMoveComponent(tree, source);
 
-        double bpp = updater.moveComponent(tree, source, dest);
+        double bpp = updater.moveSubtree(tree, source, dest);
 
         double newLogLi = tree.getLogLike();
 
@@ -39,7 +39,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
                 + (newLogLi - oldLogLi) * tree.getHeat()) {
             return true;
         } else {
-            updater.moveComponent(tree, source, prev);
+            updater.restoreSubtree(tree, source, prev);
 
             return false;
         }

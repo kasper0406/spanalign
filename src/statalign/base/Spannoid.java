@@ -786,63 +786,59 @@ public class Spannoid extends Stoppable implements ITree {
             return null;
         }
 
-        public double moveComponent(Spannoid spannoid, Vertex source, Vertex dest){
-            source.fullWin();
-            source.parent.fullWin();
-            double bpp = source.hmm2BackProp();
+        public double moveSubtree(Spannoid spannoid, Vertex source, Vertex dest){
+            double bpp = 0;
+
+            // TODO: proposal probability of selecting source --> dest
 
             // Update internal Spannoid structure
-            int vId = spannoid.labeledVertexIds.get(source);
-            spannoid.componentConnections.get(vId).remove(source);
-            int destId = spannoid.labeledVertexIds.get(dest);
-            spannoid.componentConnections.get(destId).add(source);
-            spannoid.labeledVertexIds.put(source, destId);
-            spannoid.setupInnerBlackNodes();
+            moveComponent(spannoid, source, dest);
+
+            // TODO: backproposal probability of selecting dest --> source
+
+            source.fullWin();
+            source.parent.fullWin();
+            bpp += source.hmm2BackProp();
 
             // Update Vertex with new information and alignment
             source.seq = dest.seq;
             source.length = dest.length;
             source.name = dest.name;
+
+            // save old alignment
+            source.old.first = source.first;
+            source.old.last = source.last;
+
+            // create new alignment columns for new sequence
             source.first = new AlignColumn(source);
-
-            AlignColumn cur = dest.first;
-            source.first.seq = cur.seq.clone();
+            source.first.seq = dest.first.seq.clone();
+            source.first.parent = source.parent.last;
             AlignColumn prev = source.first;
-            cur  = cur.next;
-
-            while (cur != dest.last && cur != null){
+            for (AlignColumn cur = dest.first.next; cur != dest.last; cur = cur.next) {
                 AlignColumn actual = new AlignColumn(source);
                 actual.seq = cur.seq.clone();
+                actual.parent = source.parent.last;
 
                 actual.prev = prev;
                 prev.next = actual;
+
                 prev = actual;
-
-                cur = cur.next;
             }
-
             AlignColumn last = new AlignColumn(source);
+            last.parent = source.parent.last;
+            last.orphan = false;
             last.prev = prev;
             prev.next = last;
-
             source.last = last;
 
-            AlignColumn c = source.parent.first;
-            AlignColumn n = source.first;
-            while (c != source.parent.last) {
+            // destroy parent alignment pointers
+            for (AlignColumn c = source.parent.first; c != source.parent.last; c = c.next) {
                 if (source.parent.left == source) {
                     c.left = null;
                 } else {
                     c.right = null;
                 }
-
-                c = c.next;
-                if (n != null)
-                    n = n.next;
             }
-
-            source.last.parent = source.parent.last;
-            source.last.orphan = false;
 
             if (source.parent.left == source)
                 source.parent.last.left = source.last;
@@ -851,12 +847,59 @@ public class Spannoid extends Stoppable implements ITree {
 
             source.fullWin();
             source.parent.fullWin();
-            source.brother().fullWin();
+            bpp += source.hmm2Align();
 
-            bpp += source.hmm2AlignWithSave();
             source.calcAllUp();
 
             return bpp;
+        }
+
+        public void restoreSubtree(Spannoid spannoid, Vertex source, Vertex prev){
+            // Update internal Spannoid structure
+            moveComponent(spannoid, source, prev);
+
+            // Update Vertex with new information and alignment
+            source.seq = prev.seq;
+            source.length = prev.length;
+            source.name = prev.name;
+
+            // Restore original alignment
+            source.first = source.old.first;
+            source.last = source.old.last;
+
+            AlignColumn c = source.first;
+            AlignColumn p = source.parent.first;
+            while (p != null) {
+                if (c.parent != p) {
+                    if (source.parent.left == source) {
+                        p.left = null;
+                    } else {
+                        p.right = null;
+                    }
+                    p = p.next;
+                } else if (c.orphan) {
+                    c = c.next;
+                } else {
+                    if (source.parent.left == source) {
+                        p.left = c;
+                    } else {
+                        p.right = c;
+                    }
+                    p = p.next;
+                    c = c.next;
+                }
+            }
+
+            source.calcAllUp();
+        }
+
+        private void moveComponent(Spannoid spannoid, Vertex source, Vertex dest) {
+            int vId = spannoid.labeledVertexIds.get(source);
+            spannoid.componentConnections.get(vId).remove(source);
+            int destId = spannoid.labeledVertexIds.get(dest);
+            spannoid.componentConnections.get(destId).add(source);
+            spannoid.labeledVertexIds.put(source, destId);
+            spannoid.setupInnerBlackNodes();
         }
 
         public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
