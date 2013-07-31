@@ -1581,11 +1581,6 @@ public class Spannoid extends Stoppable implements ITree {
             spannoid.setupInnerBlackNodes();
         }
 
-        public void deleteTopologyBackup(Spannoid spannoid, Tree component) {
-            for (Vertex v : component.vertex)
-                v.topologyBackup = null;
-        }
-
         /**
          *
          * @param subtree The subtree to traverse for nodes.
