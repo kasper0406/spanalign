@@ -27,6 +27,11 @@ public class Vertex {
     Vertex old;
 
     /**
+     * Backup information used for revert in contract/expand Spannoid moves.
+     */
+    Vertex topologyBackup;
+
+    /**
      * The name of the sequence associated to the vertex.
      * Used only if the vertex is a leaf of the tree.
      */
