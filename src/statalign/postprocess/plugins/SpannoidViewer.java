@@ -1,8 +1,8 @@
 package statalign.postprocess.plugins;
 
+import statalign.base.InputData;
 import statalign.base.State;
 import statalign.postprocess.Postprocess;
-import statalign.postprocess.plugins.TreeNode;
 import statalign.postprocess.utils.NewickParser;
 
 import javax.imageio.ImageIO;
@@ -13,7 +13,8 @@ import java.io.*;
 import java.util.*;
 
 public class SpannoidViewer extends Postprocess {
-    private JPanel panel = new SpannoidViewerGUI();
+    private JPanel panel = new JPanel(new BorderLayout());
+    private SpannoidViewerGUI spannoid = new SpannoidViewerGUI();
 
     @Override
     public String getTabName() {
@@ -27,7 +28,6 @@ public class SpannoidViewer extends Postprocess {
 
     @Override
     public JPanel getJPanel() {
-        displayImage();
         return panel;
     }
 
@@ -41,6 +41,13 @@ public class SpannoidViewer extends Postprocess {
         // Always sample..
     }
 
+    @Override
+    public void beforeFirstSample(InputData input) {
+        panel.removeAll();
+        JScrollPane scrollPane = new JScrollPane(spannoid);
+        panel.add(scrollPane);
+    }
+
     public void newSample(State state, int no, int total) {
         PrintWriter out = null;
         try {
@@ -51,7 +58,15 @@ public class SpannoidViewer extends Postprocess {
             File curDir = new File(".");
             Process p = Runtime.getRuntime().exec("/opt/local/bin/dot -Tjpg -o"+ curDir.getAbsolutePath() +"/spannoid.jpg < "+ curDir.getAbsolutePath() +"/spannoid.dot");
             p.waitFor();
-            displayImage();
+            BufferedImage image = null;
+            try {
+                image = ImageIO.read(new File("spannoid.jpg"));
+            } catch (IOException e) {
+            }
+            if (image != null) {
+                spannoid.setImage(image);
+            }
+            panel.repaint();
         } catch (Exception e) {
             e.printStackTrace();
             // Something went wrong.
@@ -97,22 +112,29 @@ public class SpannoidViewer extends Postprocess {
         out.write("}\n");
     }
 
-    private void displayImage() {
-        panel.repaint();
-    }
-
     public static class SpannoidViewerGUI extends JPanel {
+        private BufferedImage image = null;
+
+        public void setImage(BufferedImage image) {
+            this.image = image;
+        }
+
         @Override
         public void paintComponent(Graphics graphics) {
             graphics.setColor(Color.WHITE);
-            graphics.fillRect(0, 0, getWidth(), getHeight());
+            graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
 
-            BufferedImage image = null;
-            try {
-                image = ImageIO.read(new File("spannoid.jpg"));
-                graphics.drawImage(image, 0, 0, null);
-            } catch (IOException e) {
-            }
+            graphics.drawImage(image, 0, 0, null);
+        }
+
+        @Override
+        public Dimension getMinimumSize(){
+            return getPreferredSize();
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            return new Dimension(image.getWidth(), image.getHeight());
         }
     }
 }
