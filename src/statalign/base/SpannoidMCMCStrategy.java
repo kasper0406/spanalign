@@ -20,6 +20,8 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
     @Override
     public boolean sampleEdge() {
+        updater.checkSpannoid(tree);
+
         // Update random edge in random component
         // TODO: Maybe take fake root element into account?!
         Vertex vertex = updater.getRandomVertex(tree);
@@ -39,27 +41,30 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         Vertex prev = updater.getConnection(tree, source);
         Vertex dest = updater.getDestinationFromSourceMoveComponent(tree, source);
 
-        double bpp = updater.moveComponent(tree, source, dest);
+        double bpp = updater.moveSubtree(tree, source, dest);
 
         double newLogLi = tree.getLogLike();
 
-        // TODO: INCORRECT ACCEPTANCE RATE
         if (Math.log(Utils.generator.nextDouble()) < bpp
                 + (newLogLi - oldLogLi) * tree.getHeat()) {
             return true;
         } else {
-            updater.moveComponent(tree, source, prev);
+            updater.restoreSubtree(tree, source, prev);
 
             return false;
         }
     }
 
     private boolean sampleContract() {
+        updater.checkSpannoid(tree);
+
         Vertex labeled = updater.getLabeledNodeForContractions(tree);
+        if (labeled == null)
+            return false;
 
         Spannoid.SpannoidUpdater.ContractEdgeResult contraction = updater.contractEdge(tree, labeled);
 
-        if (Utils.generator.nextDouble() <= 0.5) {
+        if (Utils.generator.nextDouble() <= 0.005) {
             return true;
         } else {
             updater.revertEdgeContraction(contraction);
@@ -72,9 +77,6 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
     }
 
     private boolean sampleSplitMergeComponents() {
-        return sampleContract();
-
-        /*
         switch (Utils.generator.nextInt(2)) {
             case 0:
                 return sampleContract();
@@ -82,11 +84,12 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
                 return sampleExpand();
         }
         return false;
-        */
     }
 
     @Override
     public boolean sampleTopology() {
+        updater.checkSpannoid(tree);
+
         return sampleContract();
 
         /*
@@ -104,6 +107,8 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
     @Override
     public boolean sampleAlignment() {
+        updater.checkSpannoid(tree);
+
         // TODO: Consider picking component in which to resample alignment flipping some coin distributed by component sizes.
         Tree component = updater.getRandomComponent(tree);
         return sampleAlignment(component);

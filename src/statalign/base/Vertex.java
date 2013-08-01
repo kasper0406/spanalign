@@ -575,6 +575,8 @@ public class Vertex {
      * @return counted log-likelihood
      */
     double calcIndelLogLikeUp() {
+        checkPointers();
+
         final int START = owner.hmm2.getStart();
         final int END = owner.hmm2.getEnd();
         final int emitPatt2State[] = owner.hmm2.getEmitPatt2State();
@@ -659,7 +661,7 @@ public class Vertex {
         AlignColumn l = null, r = null;
         int i, j, k, previ, prevj, prevk;
 
-        /* i: left prefix length, j: right prefix length, k: state 
+        /* i: left prefix length, j: right prefix length, k: state
 	   l: left child's actual alignment column, r: that of right child */
         for (i = 0; i <= leftLen; i++) {
             for (j = 0; j <= rightLen; j++) {
@@ -736,7 +738,7 @@ public class Vertex {
                 if (l.parent == p)
                     pattCode += 2;                    // could be left/right deletion (* - *)/(* * -) with codes 5/6 or
                 if (r.parent == p)
-                    pattCode += 1;                    // "full" alignment column (* * *), binary code 7 
+                    pattCode += 1;                    // "full" alignment column (* * *), binary code 7
             }
 
             k = emitPatt2State[pattCode];            // real state number for column
@@ -1329,6 +1331,38 @@ public class Vertex {
         for (c = winFirst.prev; c != null && c.parent == parent.old.winFirst; c = c.prev)
             c.parent = parent.winFirst;
 
+        /*
+        // TODO: Fix this!
+        int i = 0;
+        int winFirstPos = -1, winLastPos = -1;
+        for (AlignColumn ac = first; ac != null; ac = ac.next) {
+            if (ac == winFirst) winFirstPos = i;
+            if (ac == winLast) winLastPos = i;
+
+            i++;
+        }
+        if (i - 1 != length)
+            length = i - 1;
+        if (winLastPos - winFirstPos != winLength)
+            winLength = winLastPos - winFirstPos;
+
+        i = 0;
+        winFirstPos = -1; winLastPos = -1;
+        for (AlignColumn ac = parent.first; ac != null; ac = ac.next) {
+            if (ac == parent.winFirst) winFirstPos = i;
+            if (ac == parent.winLast) winLastPos = i;
+
+            i++;
+        }
+        if (i - 1 != parent.length)
+            parent.length = i - 1;
+        if (winLastPos - winFirstPos != parent.winLength)
+            parent.winLength = winLastPos - winFirstPos;
+            */
+
+        parent.checkPointers();
+        checkPointers();
+
         calcOrphan();
         parent.calcFelsen();
         parent.calcOrphan();
@@ -1371,6 +1405,7 @@ public class Vertex {
 
     /** This function cuts out a window and realigns in the selected subtree. */
     double selectAndResampleAlignment() {
+        checkPointers();
 
         // this code below checks pointer integrity...
         //    for(int i = 0; i < owner.vertex.length - 1; i++){
@@ -1381,6 +1416,10 @@ public class Vertex {
         // select the beginning and end of the window
         MuDouble p = new MuDouble(1.0);
         winLength = Utils.linearizerWeight(length, p);
+
+        if (winLength == 0)
+            System.out.println("0 win length!!!");
+
         int b = (length - winLength == 0 ? 0 : Utils.generator.nextInt(length - winLength));
         AlignColumn actualAC = first;
         for (int i = 0; i < b; i++) {
@@ -1412,6 +1451,7 @@ public class Vertex {
         //System.out.println("bpp after backproposal: "+bpp);
 
         // align the sequences
+        checkPointers();
         double bppProp = doRecAlign();
         if (parent != null) {
             bppProp += hmm2AlignWithSave();
@@ -1456,9 +1496,12 @@ public class Vertex {
     }
 
     double doRecAlign() {
+        checkPointers();
+
         if (left != null && right != null && left.selected && right.selected) {
             double ret = left.doRecAlign() + right.doRecAlign();
             ret += hmm3AlignWithSave();
+
             return ret;
         }
         return 0.0;
@@ -1799,7 +1842,7 @@ public class Vertex {
         // 	    }
         // 	    System.out.println();
 
-        // 	    parent.checkPointers();	    
+        // 	    parent.checkPointers();
         // 	}
 
         // 	/////////////////////////////////////////////////
@@ -1824,7 +1867,7 @@ public class Vertex {
 
         //new parent sequence
         ret += uncle.parent.alignAllWindows();
-        uncle.parent.checkPointers();
+        // uncle.parent.checkPointers();
 
         // 	System.out.println("Aligned uncle.parent, pointers:");
         // 	System.out.println("Left:");
@@ -1837,7 +1880,7 @@ public class Vertex {
         //new grandpa
         ret += grandpa.alignAllWindows();
 
-        grandpa.checkPointers();
+        // grandpa.checkPointers();
         // 	System.out.println("aligned grandpa, RET: "+ret);
 
         // 	System.out.println("Aligned grandpa, pointers:");
@@ -1981,7 +2024,7 @@ public class Vertex {
             //}
             // System.out.println();
 
-            checkPointers();
+            // checkPointers();
         }
 
         p = last; //pf = last;
@@ -2080,7 +2123,7 @@ public class Vertex {
             //}
             //System.out.println();
 
-            checkPointers();
+            // checkPointers();
             //checking pointer integrity
             for (AlignColumn c = left.first; c != null; c = c.next) {
                 p = first;
@@ -2341,26 +2384,44 @@ public class Vertex {
      * length as the sequence in this vertex.
      */
     int[] getAlign() {
-        int[] align = new int[length];
-        Vertex vp = parent;
-        if (vp != null) {
-            AlignColumn c = first, p = vp.first;
-            int cn = 0, pn = 0;
-            while (c != last || p != vp.last) {
-                if (c.parent != p) {            // deletion (* -)
-                    pn++;
-                    p = p.next;
-                } else if (c.orphan) {        // insertion (- *)
-                    align[cn] = -pn - 1;
-                    cn++;
-                    c = c.next;
-                } else {                    // substitution (* *)
-                    align[cn] = pn;
-                    pn++;
-                    p = p.next;
-                    cn++;
-                    c = c.next;
+        return getAlign(false);
+    }
+
+    int[] getReverseAlign() {
+        return getAlign(true);
+    }
+
+    private int[] getAlign(boolean reverse) {
+        if (parent == null && !reverse) {
+            return new int[length];
+        }
+
+        int[] align = new int[reverse ? parent.length : length];
+        AlignColumn c = first, p = parent.first;
+        int cn = 0, pn = 0;
+        while (c != last || p != parent.last) {
+            if (c.parent != p) {            // deletion (* -)
+                if (reverse) {
+                    align[pn] = -cn - 1;
                 }
+                pn++;
+                p = p.next;
+            } else if (c.orphan) {        // insertion (- *)
+                if (!reverse) {
+                    align[cn] = -pn - 1;
+                }
+                cn++;
+                c = c.next;
+            } else {                    // substitution (* *)
+                if (reverse) {
+                    align[pn] = cn;
+                } else {
+                    align[cn] = pn;
+                }
+                pn++;
+                p = p.next;
+                cn++;
+                c = c.next;
             }
         }
         return align;
@@ -2450,7 +2511,7 @@ public class Vertex {
 
         return s;
         //	}
-        /*	
+        /*
 		catch(NullPointerException e){
 		System.out.println(print());
 		AlignColumn c = first;
@@ -2741,8 +2802,37 @@ public class Vertex {
 
     /** this function checks if the pointers are all right... */
     void checkPointers() {
+        if (parent != null && !(parent.left == this || parent.right == this))
+            throw new RuntimeException("Invalid tree structure!");
+
+        if ((left != null && left.parent != this) || (right != null && right.parent != this))
+            throw new RuntimeException("Invalid tree structure!");
+
+        if (last.seq != null)
+            throw new RuntimeException("Sentinel element should not have felsen probs!");
+
+        int winFirstFound = -1, winLastFound = -1;
+
         //parent
+        int i = 0;
         for (AlignColumn p = first; p != null; p = p.next) {
+            if (winFirst == p)
+                winFirstFound = i;
+            if (winLast == p)
+                winLastFound = i;
+            i++;
+
+            /*
+            if (p.owner != this)
+                throw new RuntimeException("Invalid owner!");
+
+            if (p.parent != null && p.parent.owner != parent)
+                throw new RuntimeException("Invalid owner of align column!");
+
+            if ((p.left != null && p.left.owner != left) || (p.right != null && p.right.owner != right))
+                throw new RuntimeException("Invalid owner to side");
+                */
+
             if (p.left != null && (p.left.orphan || p.left.parent != p)) {
                 throw new Error("Problem is vertex " + this + ":\np is: " + p + " p.left is " + p.left + " p.left.orphan: " + p.left.orphan +
                         " p.left.parent: " + p.left.parent);
@@ -2752,19 +2842,64 @@ public class Vertex {
                         " p.right.parent: " + p.right.parent);
             }
         }
-        for (AlignColumn l = left.first; l != null; l = l.next) {
-            if (!l.orphan) {
-                if (l.parent == null || l.parent.left != l) {
-                    throw new Error("Problem in vertex " + this + ":\nl is: " + l + (l.parent == null ? " l does not have a parent" : " l parent is: " + l.parent + " l parent left is: " + l.parent.left));
+
+        if (i - 1 != length)
+            throw new RuntimeException("Wrong length!");
+
+        /*
+        if (winFirstFound == -1 || winLastFound == -1 || winLastFound - winFirstFound != winLength)
+            throw new RuntimeException("Invalid window positions!");
+            */
+
+        if (left != null) {
+            for (AlignColumn l = left.first; l != null; l = l.next) {
+                if (!l.orphan) {
+                    if (l.parent == null || l.parent.left != l) {
+                        throw new Error("Problem in vertex " + this + ":\nl is: " + l + (l.parent == null ? " l does not have a parent" : " l parent is: " + l.parent + " l parent left is: " + l.parent.left));
+                    }
                 }
             }
         }
-        for (AlignColumn r = right.first; r != null; r = r.next) {
-            if (!r.orphan) {
-                if (r.parent == null || r.parent.right != r) {
-                    throw new Error("Problem in vertex " + this + ":\nr is: " + r + (r.parent == null ? " r does not have a parent" : " r parent is: " + r.parent + " r parent right is: " + r.parent.right));
+
+        if (right != null) {
+            for (AlignColumn r = right.first; r != null; r = r.next) {
+                if (!r.orphan) {
+                    if (r.parent == null || r.parent.right != r) {
+                        throw new Error("Problem in vertex " + this + ":\nr is: " + r + (r.parent == null ? " r does not have a parent" : " r parent is: " + r.parent + " r parent right is: " + r.parent.right));
+                    }
                 }
             }
+        }
+
+        if (parent != null) {
+            AlignColumn c = first, p = parent.first;
+            while (c != last || p != parent.last) {
+                if (c.parent != p) {            // deletion (* -)
+                    if ((parent.left == this && p.left != null) || (parent.right == this && p.right != null))
+                        throw new RuntimeException();
+
+                    p = p.next;
+                } else if (c.orphan) {        // insertion (- *)
+                    if (c.parent != p)
+                        throw new RuntimeException();
+
+                    c = c.next;
+                } else {                    // substitution (* *)
+                    if (c.parent != p)
+                        throw new RuntimeException();
+
+                    if ((parent.left == this && p.left != c) || (parent.right == this && p.right != c))
+                        throw new RuntimeException();
+
+                    if (c.orphan)
+                        throw new RuntimeException();
+
+                    p = p.next;
+                    c = c.next;
+                }
+            }
+            if (last.parent != parent.last || (parent.last.left != last && parent.last.right != last))
+                throw new RuntimeException();
         }
     }
 

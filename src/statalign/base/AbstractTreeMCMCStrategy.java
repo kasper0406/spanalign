@@ -173,6 +173,10 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
         }
         int k = Utils.weightedChoose(weights, null);
         // System.out.println("Sampling from the subtree: "+tree.vertex[k].print());
+
+        for (Vertex v : tree.vertex)
+            v.checkPointers();
+
         tree.vertex.get(k).selectSubtree(SELTRLEVPROB, 0);
         double bpp = tree.vertex.get(k).selectAndResampleAlignment();
         double newLogLi = tree.getLogLike();
