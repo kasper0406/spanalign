@@ -1417,9 +1417,6 @@ public class Vertex {
         MuDouble p = new MuDouble(1.0);
         winLength = Utils.linearizerWeight(length, p);
 
-        if (winLength == 0)
-            System.out.println("0 win length!!!");
-
         int b = (length - winLength == 0 ? 0 : Utils.generator.nextInt(length - winLength));
         AlignColumn actualAC = first;
         for (int i = 0; i < b; i++) {
