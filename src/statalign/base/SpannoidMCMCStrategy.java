@@ -79,7 +79,8 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
         Spannoid.SpannoidUpdater.ContractEdgeResult contraction = updater.contractEdge(tree, labeled);
 
-        if (Utils.generator.nextDouble() <= 0.05) {
+        // TODO: Added correct acceptance probs!
+        if (Utils.generator.nextDouble() <= 0.2) {
             return true;
         } else {
             updater.revertEdgeContraction(contraction);
@@ -88,20 +89,32 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
     }
 
     private boolean sampleExpand() {
-        return false;
+        updater.checkSpannoid(tree);
+
+        // TODO: Take valency restriction into account!
+        Vertex[] nodes = updater.getRandomNodesForExpansion(tree);
+        if (nodes == null)
+            return false;
+
+        Spannoid.SpannoidUpdater.ExpandEdgeResult expansion = updater.expandEdge(tree, nodes[0], nodes[1]);
+
+        // TODO: Added correct acceptance probs!
+        if (Utils.generator.nextDouble() <= 0.2) {
+            return true;
+        } else {
+            updater.revertEdgeExpansion(expansion);
+            return false;
+        }
     }
 
     private boolean sampleSplitMergeComponents() {
-        return sampleContract();
-
-        /*
         switch (Utils.generator.nextInt(2)) {
             case 0:
                 return sampleContract();
             case 1:
                 return sampleExpand();
         }
-        return false;*/
+        return false;
     }
 
     @Override

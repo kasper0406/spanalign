@@ -1331,35 +1331,6 @@ public class Vertex {
         for (c = winFirst.prev; c != null && c.parent == parent.old.winFirst; c = c.prev)
             c.parent = parent.winFirst;
 
-        /*
-        // TODO: Fix this!
-        int i = 0;
-        int winFirstPos = -1, winLastPos = -1;
-        for (AlignColumn ac = first; ac != null; ac = ac.next) {
-            if (ac == winFirst) winFirstPos = i;
-            if (ac == winLast) winLastPos = i;
-
-            i++;
-        }
-        if (i - 1 != length)
-            length = i - 1;
-        if (winLastPos - winFirstPos != winLength)
-            winLength = winLastPos - winFirstPos;
-
-        i = 0;
-        winFirstPos = -1; winLastPos = -1;
-        for (AlignColumn ac = parent.first; ac != null; ac = ac.next) {
-            if (ac == parent.winFirst) winFirstPos = i;
-            if (ac == parent.winLast) winLastPos = i;
-
-            i++;
-        }
-        if (i - 1 != parent.length)
-            parent.length = i - 1;
-        if (winLastPos - winFirstPos != parent.winLength)
-            parent.winLength = winLastPos - winFirstPos;
-            */
-
         parent.checkPointers();
         checkPointers();
 
@@ -2907,6 +2878,9 @@ public class Vertex {
             if (last.parent != parent.last || (parent.last.left != last && parent.last.right != last))
                 throw new RuntimeException();
         }
+
+        if (first.prev != null || last.next != null)
+            throw new RuntimeException();
     }
 
 //    /**
