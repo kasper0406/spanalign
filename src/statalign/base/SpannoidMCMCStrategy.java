@@ -25,16 +25,25 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         // Update random edge in random component
         // TODO: Maybe take fake root element into account?!
         Vertex vertex = updater.getRandomVertex(tree);
-        return sampleEdge(vertex);
+        boolean res = sampleEdge(vertex);
+
+        updater.checkSpannoid(tree);
+        return res;
     }
 
 
     private boolean sampleInnerTopology() {
+        updater.checkSpannoid(tree);
+
         Tree component = updater.getRandomComponent(tree);
-        return sampleTopology(component);
+        boolean res = sampleTopology(component);
+        updater.checkSpannoid(tree);
+        return res;
     }
 
     private boolean sampleMoveComponents(){
+        updater.checkSpannoid(tree);
+
         double oldLogLi = tree.getLogLike();
 
         Vertex source = updater.getRandomInnerBlack(tree);
@@ -47,9 +56,12 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
         if (Math.log(Utils.generator.nextDouble()) < bpp
                 + (newLogLi - oldLogLi) * tree.getHeat()) {
+            updater.checkSpannoid(tree);
             return true;
         } else {
             updater.restoreSubtree(tree, source, prev);
+
+            updater.checkSpannoid(tree);
 
             return false;
         }
@@ -90,7 +102,9 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
     public boolean sampleTopology() {
         updater.checkSpannoid(tree);
 
-        return sampleContract();
+        boolean res = sampleContract();
+        updater.checkSpannoid(tree);
+        return res;
 
         /*
         int j = Utils.generator.nextInt(3);
@@ -111,6 +125,9 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
         // TODO: Consider picking component in which to resample alignment flipping some coin distributed by component sizes.
         Tree component = updater.getRandomComponent(tree);
-        return sampleAlignment(component);
+        boolean res = sampleAlignment(component);
+
+        updater.checkSpannoid(tree);
+        return res;
     }
 }

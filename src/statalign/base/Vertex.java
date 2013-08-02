@@ -3,6 +3,8 @@ package statalign.base;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.FieldPosition;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This is a vertex of the tree.

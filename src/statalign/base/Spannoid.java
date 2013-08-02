@@ -1289,14 +1289,16 @@ public class Spannoid extends Stoppable implements ITree {
 
                 for (AlignColumn ac = v.left.first; ac != null; ac = ac.next) {
                     if (ac.parent != null) {
-                        oldToNewMap.get(ac.parent).left = ac;
+                        if (ac.parent.left != null)
+                            oldToNewMap.get(ac.parent).left = ac;
                         ac.parent = oldToNewMap.get(ac.parent);
                     }
                 }
 
                 for (AlignColumn ac = v.right.first; ac != null; ac = ac.next) {
                     if (ac.parent != null) {
-                        oldToNewMap.get(ac.parent).right = ac;
+                        if (ac.parent.right != null)
+                            oldToNewMap.get(ac.parent).right = ac;
                         ac.parent = oldToNewMap.get(ac.parent);
                     }
                 }
@@ -1470,17 +1472,6 @@ public class Spannoid extends Stoppable implements ITree {
             steiner.checkPointers();
             steiner.parent.checkPointers();
 
-            String parentAlign = printAlignColumns(parentLeaf);
-            for (AlignColumn ac = parentLeaf.first; ac != null; ac = ac.next) {
-                if (ac.parent.owner != steiner)
-                    throw new RuntimeException("Foobar!");
-            }
-            String steinerAlign = printAlignColumns(steiner);
-            for (AlignColumn ac = steiner.first; ac != null; ac = ac.next) {
-                if (ac.parent.owner != steiner.parent)
-                    throw new RuntimeException("Foobar!");
-            }
-
             alignAlignment(parentLeaf, steiner, steiner.parent);
 
             if (steiner.left == parentLeaf)
@@ -1498,9 +1489,14 @@ public class Spannoid extends Stoppable implements ITree {
             parentLeaf.parent = steiner.parent;
             if (steiner.parent.left == steiner) {
                 steiner.parent.left = parentLeaf;
-            } else {
+            } else if (steiner.parent.right == steiner) {
                 steiner.parent.right = parentLeaf;
+            } else {
+                throw new RuntimeException("Error!");
             }
+
+            steiner.parent.checkPointers();
+            parentLeaf.checkPointers();
 
             parentLeaf.parent.edgeChangeUpdate();
             parentLeaf.edgeChangeUpdate();
@@ -1534,11 +1530,12 @@ public class Spannoid extends Stoppable implements ITree {
             }
             childLeaf.last.orphan = false;
             childLeaf.last.parent = null;
+            childLeaf.last.right = null;
             childLeaf.last.left = subTree.last;
 
             // childLeaf is labeled root node
             for (AlignColumn ac = subTree.first; ac != subTree.last; ac = ac.next) {
-                ac.parent = childLeaf.first;
+                ac.parent = childLeaf.last;
                 ac.orphan = true;
             }
             subTree.last.parent = childLeaf.last;
@@ -1608,6 +1605,8 @@ public class Spannoid extends Stoppable implements ITree {
             childComponent.root.calcFelsRecursively();
             parentComponent.root.calcIndelLikeRecursively();
             childComponent.root.calcIndelLikeRecursively();
+
+            checkSpannoid(spannoid);
 
             return new ContractEdgeResult(spannoid, labeled, originalSteiner, parentLeaf, childLeaf);
         }
