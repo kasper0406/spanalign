@@ -297,6 +297,12 @@ public class Spannoid extends Stoppable implements ITree {
             // Add empty alignment column to internal nodes, and set
             makeFakeAlignmentColumn(vertex);
 
+            // TODO: Hack for making us able to check alignments!
+            Vertex tmp = vertex.parent;
+            vertex.parent = null;
+            vertex.checkPointers();
+            vertex.parent = tmp;
+
             // Do full alignment!
             vertex.fullWin();
 
@@ -343,11 +349,21 @@ public class Spannoid extends Stoppable implements ITree {
         vertex.last = fake;
         vertex.length = 0;
         if (vertex.right != null) {
+            for (AlignColumn ac = vertex.right.first; ac != vertex.right.last; ac = ac.next) {
+                ac.parent = fake;
+                ac.orphan = true;
+            }
+
             fake.right = vertex.right.last;
             vertex.right.last.parent = fake;
             vertex.right.last.orphan = false;
         }
         if (vertex.left != null) {
+            for (AlignColumn ac = vertex.left.first; ac != vertex.left.last; ac = ac.next) {
+                ac.parent = fake;
+                ac.orphan = true;
+            }
+
             fake.left = vertex.left.last;
             vertex.left.last.parent = fake;
             vertex.left.last.orphan = false;
@@ -681,12 +697,6 @@ public class Spannoid extends Stoppable implements ITree {
                 updater.recalcSubstitutionParameters(component);
         }
 
-        @Override
-        public void revertNNI(Tree tree, AbstractUpdater.NNIResult nni){
-            revertNNI(tree, nni);
-
-        }
-
         public Tree getRandomComponent(Spannoid spannoid) {
             int i = Utils.generator.nextInt(spannoid.components.size());
             return spannoid.components.get(i);
@@ -735,6 +745,9 @@ public class Spannoid extends Stoppable implements ITree {
 
 
         public Vertex getRandomInnerBlack(Spannoid spannoid){
+            if (spannoid.innerBlackNodes.size() == 0)
+                return null;
+
             int j = Utils.generator.nextInt(spannoid.innerBlackNodes.size());
             Integer index = spannoid.innerBlackNodes.get(j);
             Set<Vertex> neighborhood = spannoid.componentConnections.get(index);
@@ -1709,8 +1722,7 @@ public class Spannoid extends Stoppable implements ITree {
             leaves.add(labeledRoot);
             collectNodes(subtree, leaves);
 
-            // int k = Utils.generator.nextInt(leaves.size());
-            int k = 0; // TODO: FIX THIS!
+            int k = Utils.generator.nextInt(leaves.size());
             return leaves.get(k);
         }
 

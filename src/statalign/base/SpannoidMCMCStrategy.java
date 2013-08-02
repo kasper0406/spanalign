@@ -47,6 +47,9 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         double oldLogLi = tree.getLogLike();
 
         Vertex source = updater.getRandomInnerBlack(tree);
+        if (source == null)
+            return false;
+
         Vertex prev = updater.getConnection(tree, source);
         Vertex dest = updater.getDestinationFromSourceMoveComponent(tree, source);
 
@@ -76,7 +79,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
         Spannoid.SpannoidUpdater.ContractEdgeResult contraction = updater.contractEdge(tree, labeled);
 
-        if (Utils.generator.nextDouble() <= 0.005) {
+        if (Utils.generator.nextDouble() <= 0.05) {
             return true;
         } else {
             updater.revertEdgeContraction(contraction);
@@ -89,34 +92,37 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
     }
 
     private boolean sampleSplitMergeComponents() {
+        return sampleContract();
+
+        /*
         switch (Utils.generator.nextInt(2)) {
             case 0:
                 return sampleContract();
             case 1:
                 return sampleExpand();
         }
-        return false;
+        return false;*/
     }
 
     @Override
     public boolean sampleTopology() {
         updater.checkSpannoid(tree);
 
-        boolean res = sampleContract();
-        updater.checkSpannoid(tree);
-        return res;
-
-        /*
+        boolean res = false;
         int j = Utils.generator.nextInt(3);
         switch (j) {
             case 0:
-                return sampleInnerTopology();
+                res = sampleInnerTopology();
+                break;
             case 1:
-                return sampleMoveComponents();
+                res = sampleMoveComponents();
+                break;
             case 2:
-                return sampleSplitMergeComponents();
+                res = sampleSplitMergeComponents();
+                break;
         }
-        return false;                         */
+        updater.checkSpannoid(tree);
+        return res;
     }
 
     @Override

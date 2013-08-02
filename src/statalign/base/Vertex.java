@@ -577,8 +577,6 @@ public class Vertex {
      * @return counted log-likelihood
      */
     double calcIndelLogLikeUp() {
-        checkPointers();
-
         final int START = owner.hmm2.getStart();
         final int END = owner.hmm2.getEnd();
         final int emitPatt2State[] = owner.hmm2.getEmitPatt2State();
@@ -2840,6 +2838,9 @@ public class Vertex {
                 throw new Error("Problem is vertex " + this + ":\np is: " + p + " p.right is " + p.right + " p.right.orphan: " + p.right.orphan +
                         " p.right.parent: " + p.right.parent);
             }
+
+            if ((p.right != null && p.right.owner != right) || (p.left != null && p.left.owner != left))
+                throw new RuntimeException();
         }
 
         if (i - 1 != length)
@@ -2852,6 +2853,9 @@ public class Vertex {
 
         if (left != null) {
             for (AlignColumn l = left.first; l != null; l = l.next) {
+                if (l.parent != null && l.parent.owner != this)
+                    throw new RuntimeException();
+
                 if (!l.orphan) {
                     if (l.parent == null || l.parent.left != l) {
                         throw new Error("Problem in vertex " + this + ":\nl is: " + l + (l.parent == null ? " l does not have a parent" : " l parent is: " + l.parent + " l parent left is: " + l.parent.left));
@@ -2862,6 +2866,9 @@ public class Vertex {
 
         if (right != null) {
             for (AlignColumn r = right.first; r != null; r = r.next) {
+                if (r.parent != null && r.parent.owner != this)
+                    throw new RuntimeException();
+
                 if (!r.orphan) {
                     if (r.parent == null || r.parent.right != r) {
                         throw new Error("Problem in vertex " + this + ":\nr is: " + r + (r.parent == null ? " r does not have a parent" : " r parent is: " + r.parent + " r parent right is: " + r.parent.right));
