@@ -313,13 +313,13 @@ public class Spannoid extends Stoppable implements ITree {
             vertex.hmm3AlignWithRecalc();
         }
 
-        for (Vertex v : tree.vertex)
-                v.checkPointers();
-
         // Align all steiner/internal nodes
         rootVertex.doRecAlign();
         rootVertex.calcFelsRecursively();
         rootVertex.calcIndelLikeRecursively();
+
+        for (Vertex v : tree.vertex)
+            v.checkPointers();
 
         // Add the component
         components.add(tree);
@@ -466,25 +466,41 @@ public class Spannoid extends Stoppable implements ITree {
     }
 
     private Tree getRepresentant() {
-        return components.iterator().next();
+        return components.get(0);
     }
 
     public double getR() {
         // ASSUMPTION: These two params are consistent between components.
         // TODO: Get rid of assumption?
-        return getRepresentant().hmm2.params[0];
+        return getRepresentant().getR();
     }
 
     public double getLambda() {
         // ASSUMPTION: These two params are consistent between components.
         // TODO: Get rid of assumption?
-        return getRepresentant().hmm2.params[1];
+        final double lambda = getRepresentant().getLambda();
+
+        // Consistenct check!
+        for (Tree component : components) {
+            if (lambda != component.getLambda())
+                throw new RuntimeException();
+        }
+
+        return lambda;
     }
 
     public double getMu() {
         // ASSUMPTION: These two params are consistent between components.
         // TODO: Get rid of assumption?
-        return getRepresentant().hmm2.params[2];
+        final double mu = getRepresentant().getMu();
+
+        // Consistenct check!
+        for (Tree component : components) {
+            if (mu!= component.getMu())
+                throw new RuntimeException();
+        }
+
+        return mu;
     }
 
     @Override
@@ -982,11 +998,14 @@ public class Spannoid extends Stoppable implements ITree {
             child.checkPointers();
         }
 
-        private Tree createEmptyComponent(SubstitutionModel model) {
+        private Tree createEmptyComponent(SubstitutionModel model,
+                                          double R, double lambda, double mu) {
             Tree tree = new Tree();
             tree.substitutionModel = model;
             tree.hmm2 = new HmmTkf92(null);
             tree.hmm3 = new HmmNonParam();
+
+            tree.hmm2.params = new double[] { R, lambda, mu };
 
             return tree;
         }
@@ -1061,6 +1080,7 @@ public class Spannoid extends Stoppable implements ITree {
             copy.name = original.name;
             copy.length = original.length;
             copy.seq = original.seq;
+
             // copy.owner = original.owner;
 
             AlignColumn cur = original.first;
@@ -1188,7 +1208,7 @@ public class Spannoid extends Stoppable implements ITree {
             Collections.reverse(directions); // Get directions ordered from (current) parent to child.
             Direction[] directionsArray = directions.toArray(new Direction[0]);
 
-            Vertex newRoot = new Vertex(where.owner, 0.0);
+            Vertex newRoot = new Vertex(where.owner, 1);
             if (where == oldParent) {
                 newRoot.left = oldParent.left;
                 newRoot.right = oldParent;
@@ -1434,15 +1454,18 @@ public class Spannoid extends Stoppable implements ITree {
             final Tree originalComponent = labeled.owner;
 
             // Backup the entire tree
-            backupTree(originalComponent.root);
+            // backupTree(originalComponent.root);
 
             // SPECIAL CASE: Steiner is the fake root vertex!
             if (steiner.parent == null) {
                 throw new RuntimeException("Not yet implemented!");
             }
 
-            Tree upComponent = createEmptyComponent(originalComponent.getSubstitutionModel());
-            Tree downComponent = createEmptyComponent(originalComponent.getSubstitutionModel());
+            final double R = originalComponent.getR(),
+                         lambda = originalComponent.getLambda(),
+                         mu = originalComponent.getMu();
+            Tree upComponent = createEmptyComponent(originalComponent.getSubstitutionModel(), R, lambda, mu);
+            Tree downComponent = createEmptyComponent(originalComponent.getSubstitutionModel(), R, lambda, mu);
 
             Vertex up = new Vertex(upComponent, 1);
             Vertex down = new Vertex(downComponent, 1);
@@ -1477,6 +1500,22 @@ public class Spannoid extends Stoppable implements ITree {
             up.parent.fullWin();
             up.hmm2AlignWithRecalc(); // TODO: Pick better alignment!
 
+            up.checkPointers();
+            steiner.parent.checkPointers();
+
+            dfsMoveVertex(up, null, upComponent);
+
+            up.calcIndelLogLikeUp();
+            for (Vertex v : upComponent.vertex)
+                v.checkPointers();
+
+            upComponent.root.doMyRecAlign();
+            upComponent.root.calcFelsRecursively();
+            upComponent.root.calcIndelLikeRecursively();
+
+            for (Vertex v : upComponent.vertex)
+                v.checkPointers();
+
             // Handle down component
             Vertex brother = labeled.brother();
             copyAlignColumn(down, labeled);
@@ -1496,33 +1535,35 @@ public class Spannoid extends Stoppable implements ITree {
             down.last.left = brother.last;
 
             dfsMoveVertex(down, null, downComponent);
-            dfsMoveVertex(up, null, upComponent);
 
-            final Vertex rootAt = getRandomNode(brother, down);
+            // final Vertex rootAt = getRandomNode(brother, down);
+            final Vertex rootAt = down;
             Vertex newRoot = rerootComponent(rootAt);
             downComponent.vertex.add(newRoot);
             downComponent.root = newRoot;
 
-            newRoot.checkPointers();
-            brother.checkPointers();
-            down.checkPointers();
-            down.parent.checkPointers();
-
+            /*
             down.parent.edgeChangeUpdate();
             down.parent.fullWin();
             down.edgeChangeUpdate();
             down.fullWin();
             down.hmm2AlignWithRecalc();
+            */
 
             down.checkPointers();
             down.parent.checkPointers();
             brother.checkPointers();
             newRoot.checkPointers();
 
+            // TODO: Testing...
+            downComponent.root.doMyRecAlign();
+
             upComponent.root.calcFelsRecursively();
             upComponent.root.calcIndelLikeRecursively();
             downComponent.root.calcFelsRecursively();
             downComponent.root.calcIndelLikeRecursively();
+
+            downComponent.root.doMyRecAlign();
 
             // Update Spannoid information
             final int before = spannoid.components.size();
@@ -1786,8 +1827,7 @@ public class Spannoid extends Stoppable implements ITree {
             checkSpannoid(spannoid);
 
             return new ContractEdgeResult(spannoid, labeled, originalSteiner, parentLeaf, childLeaf);
-        }
-        */
+        } */
 
         public void revertEdgeContraction(ContractEdgeResult contraction)
         {
@@ -1801,44 +1841,6 @@ public class Spannoid extends Stoppable implements ITree {
 
             for (Vertex v : originalComponent.vertex)
                 restoreVertex(v);
-
-            /*
-            restoreVertex(contraction.steiner);
-
-            // Restore parent tree
-            if (contraction.steiner.parent == null) {
-                Vertex brother = contraction.contractedVertex.brother();
-                restoreVertex(brother);
-                restoreVertex(brother.left);
-            } else {
-                restoreVertex(contraction.steiner.parent);
-            }
-
-            // Restore child tree
-            List<Direction> directions = new LinkedList<Direction>();
-            Vertex cur = contraction.childTree;
-            while (cur.parent != null) {
-                if (cur.parent.left == cur)
-                    directions.add(Direction.LEFT);
-                else if (cur.parent.right == cur)
-                    directions.add(Direction.RIGHT);
-                else
-                    throw new RuntimeException("Something horrible happened!");
-
-                cur = cur.parent;
-            }
-            Collections.reverse(directions); // Get directions ordered from (current) parent to child.
-            Direction[] directionsArray = directions.toArray(new Direction[0]);
-
-            // Current is the root of childTree at this point!
-            Vertex brother = directionsArray[0].flip().getChild(cur);
-            restoreVertex(brother);
-
-            cur = directionsArray[0].getChild(cur);
-            for (int i = 1; i < directionsArray.length; i++) {
-                restoreVertex(cur);
-                cur = directionsArray[i].getChild(cur);
-            }                                 */
 
             // Revert the owner of the vertices
             changeOwnerVertices(originalComponent, originalComponent.root);
@@ -1947,10 +1949,11 @@ public class Spannoid extends Stoppable implements ITree {
 
         public ExpandEdgeResult expandEdge(Spannoid spannoid, final Vertex up, final Vertex down)
         {
-            backupTree(up.owner.root);
-            backupTree(down.owner.root);
+            // backupTree(up.owner.root);
+            // backupTree(down.owner.root);
 
-            Tree newComponent = createEmptyComponent(spannoid.getSubstitutionModel());
+            final double R = spannoid.getR(), lambda = spannoid.getLambda(), mu = spannoid.getMu();
+            Tree newComponent = createEmptyComponent(spannoid.getSubstitutionModel(), R, lambda, mu);
             Vertex labeled = new Vertex(newComponent, 1);
             copyAlignColumn(labeled, up);
 

@@ -7,8 +7,9 @@ public class SteinerTreeUpdater extends AbstractUpdater<Tree>  {
         tree.hmm2.params[1] = newLambda;
         tree.hmm2.params[2] = newMu;
 
-        for (Vertex v : tree.vertex)
+        for (Vertex v : tree.vertex) {
             v.updateHmmMatrices();
+        }
         tree.root.calcIndelLikeRecursively();
     }
 
@@ -27,21 +28,10 @@ public class SteinerTreeUpdater extends AbstractUpdater<Tree>  {
         updateParams(tree, tree.getR(), tree.getLambda(), newMu);
     }
 
-
-
     @Override
     public void recalcSubstitutionParameters(Tree tree) {
         for (Vertex v : tree.vertex)
             v.updateTransitionMatrix();
         tree.root.calcFelsRecursively();
     }
-
-    @Override
-    public void revertNNI(Tree tree, AbstractUpdater.NNIResult nni){
-        super.revertNNI(tree, nni);
-
-    }
-
-
-
 }

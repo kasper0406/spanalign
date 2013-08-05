@@ -3,6 +3,7 @@ package statalign.base;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.FieldPosition;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -1349,8 +1350,8 @@ public class Vertex {
         for (c = winFirst.prev; c != null && c.parent == parent.old.winFirst; c = c.prev)
             c.parent = parent.winFirst;
 
-        parent.checkPointers();
-        checkPointers();
+        //parent.checkPointers();
+        //checkPointers();
 
         calcOrphan();
         parent.calcFelsen();
@@ -1482,10 +1483,25 @@ public class Vertex {
     }
 
     double doRecAlign() {
-        checkPointers();
-
         if (left != null && right != null && left.selected && right.selected) {
             double ret = left.doRecAlign() + right.doRecAlign();
+            ret += hmm3AlignWithSave();
+
+            return ret;
+        }
+        return 0.0;
+    }
+
+    double doMyRecAlign() {
+        fullWin();
+        edgeChangeUpdate();
+
+        if (left != null && right != null && left.selected && right.selected) {
+            double ret = left.doMyRecAlign() + right.doMyRecAlign();
+
+            left.fullWin();
+            right.fullWin();
+
             ret += hmm3AlignWithSave();
 
             return ret;
@@ -2895,6 +2911,19 @@ public class Vertex {
             }
             if (last.parent != parent.last || (parent.last.left != last && parent.last.right != last))
                 throw new RuntimeException();
+
+            for (AlignColumn ac = first; ac != last; ac = ac.next) {
+                if (ac.next.parent == ac.parent && !ac.orphan)
+                    throw new RuntimeException();
+            }
+
+            Set<AlignColumn> acOfParent = new HashSet<AlignColumn>();
+            for (AlignColumn ac = parent.first; ac != null; ac = ac.next)
+                acOfParent.add(ac);
+            for (AlignColumn ac = first; ac != null; ac = ac.next) {
+                if (!acOfParent.contains(ac.parent))
+                    throw new RuntimeException();
+            }
         }
 
         if (first.prev != null || last.next != null)

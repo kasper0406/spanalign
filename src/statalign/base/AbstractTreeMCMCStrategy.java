@@ -19,7 +19,7 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
     public boolean sampleIndelParameter() {
         boolean accepted = false;
         switch (Utils.generator.nextInt(3)) {
-            case 0:
+            case 0: {
                 // System.out.print("Indel param R: ");
                 double oldR = tree.getR();
                 double oldLogLikelihood = tree.getLogLike();
@@ -46,11 +46,12 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
                 }
 
                 break;
-            case 1:
+            }
+            case 1: {
                 // ///////////////////////////////////////////////
                 // System.out.print("Indel param Lambda: ");
                 double oldLambda = tree.getLambda();
-                oldLogLikelihood = tree.getLogLike();
+                double oldLogLikelihood = tree.getLogLike();
                 double newLambda;
                 while ((newLambda = oldLambda
                         + Utils.generator.nextDouble() * Utils.LAMBDA_SPAN
@@ -58,7 +59,7 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
                         || newLambda >= tree.getMu())
                     ;
                 updater.updateLambda(tree, newLambda);
-                newLogLikelihood = tree.getLogLike();
+                double newLogLikelihood = tree.getLogLike();
                 if (Utils.generator.nextDouble() < Math.exp((newLogLikelihood
                         - oldLogLikelihood - tree.getLambda() + oldLambda)
                         * tree.getHeat())
@@ -77,17 +78,18 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
                     // System.out.println("rejected (old: "+oldLogLikelihood+" new: "+newLogLikelihood+" oldLambda: "+oldLambda+" newLambda: "+tree.hmm2.params[1]+")");
                 }
                 break;
-            case 2:
+            }
+            case 2: {
                 // ///////////////////////////////////////////////////////
                 // System.out.print("Indel param Mu: ");
                 double oldMu = tree.getMu();
-                oldLogLikelihood = tree.getLogLike();
+                double oldLogLikelihood = tree.getLogLike();
                 double newMu;
                 while ((newMu = oldMu + Utils.generator.nextDouble()
                         * Utils.MU_SPAN - Utils.MU_SPAN / 2.0) <= tree.getLambda())
                     ;
                 updater.updateMu(tree, newMu);
-                newLogLikelihood = tree.getLogLike();
+                double newLogLikelihood = tree.getLogLike();
                 if (Utils.generator.nextDouble() < Math.exp((newLogLikelihood
                         - oldLogLikelihood - tree.getMu() + oldMu)
                         * tree.getHeat())
@@ -104,6 +106,7 @@ public abstract class AbstractTreeMCMCStrategy<T extends ITree, Updater extends 
                     // System.out.println("rejected (old: "+oldLogLikelihood+" new: "+newLogLikelihood+")");
                 }
                 break;
+            }
         }
         return accepted;
     }

@@ -85,7 +85,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         Spannoid.SpannoidUpdater.ContractEdgeResult contraction = updater.contractEdge(tree, labeled);
 
         // TODO: Added correct acceptance probs!
-        if (Utils.generator.nextDouble() <= 0.2) {
+        if (Utils.generator.nextDouble() <= 0.5) {
             return true;
         } else {
             // updater.revertEdgeContraction(contraction);
