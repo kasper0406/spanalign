@@ -77,13 +77,18 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         if (labeled == null)
             return false;
 
+        // TODO: Delete this code!
+        // Special case disabled for testing!
+        if (labeled.parent.parent == null)
+            return false;
+
         Spannoid.SpannoidUpdater.ContractEdgeResult contraction = updater.contractEdge(tree, labeled);
 
         // TODO: Added correct acceptance probs!
         if (Utils.generator.nextDouble() <= 0.2) {
             return true;
         } else {
-            updater.revertEdgeContraction(contraction);
+            // updater.revertEdgeContraction(contraction);
             return false;
         }
     }
@@ -102,7 +107,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         if (Utils.generator.nextDouble() <= 0.2) {
             return true;
         } else {
-            updater.revertEdgeExpansion(expansion);
+            // updater.revertEdgeExpansion(expansion);
             return false;
         }
     }

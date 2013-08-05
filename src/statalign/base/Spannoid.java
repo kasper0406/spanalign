@@ -307,8 +307,10 @@ public class Spannoid extends Stoppable implements ITree {
 
             // Do full alignment!
             vertex.fullWin();
+            vertex.left.fullWin();
+            vertex.right.fullWin();
 
-            vertex.hmm3AlignWithSave();
+            vertex.hmm3AlignWithRecalc();
         }
 
         for (Vertex v : tree.vertex)
@@ -347,6 +349,8 @@ public class Spannoid extends Stoppable implements ITree {
 
     private void makeFakeAlignmentColumn(Vertex vertex) {
         AlignColumn fake = new AlignColumn(vertex);
+        fake.orphan = false;
+
         vertex.first = fake;
         vertex.last = fake;
         vertex.length = 0;
@@ -639,11 +643,16 @@ public class Spannoid extends Stoppable implements ITree {
         SpannoidViewer viewer = new SpannoidViewer();
         SpannoidUpdater updater = new SpannoidUpdater();
 
+        viewer.newSample(spannoid.getState(), 0, 0);
         SpannoidUpdater.ContractEdgeResult contraction = updater.contractEdge(spannoid, getVertexByName("C", 0, spannoid));
+        viewer.newSample(spannoid.getState(), 0, 0);
         contraction = updater.contractEdge(spannoid, getVertexByName("B", 0, spannoid));
+        viewer.newSample(spannoid.getState(), 0, 0);
+
         contraction = updater.contractEdge(spannoid, getVertexByName("E", 0, spannoid));
+        viewer.newSample(spannoid.getState(), 0, 0);
         contraction = updater.contractEdge(spannoid, getVertexByName("G", 0, spannoid));
-        contraction = updater.contractEdge(spannoid, getVertexByName("D", 0, spannoid));
+        // contraction = updater.contractEdge(spannoid, getVertexByName("D", 0, spannoid));
         viewer.newSample(spannoid.getState(), 0, 0);
 
         SpannoidUpdater.ExpandEdgeResult expansion = updater.expandEdge(spannoid, getVertexByName("C", 0, spannoid), getVertexByName("C", 1, spannoid));
@@ -655,8 +664,8 @@ public class Spannoid extends Stoppable implements ITree {
         viewer.newSample(spannoid.getState(), 0, 0);
         updater.expandEdge(spannoid, getVertexByName("G", 0, spannoid), getVertexByName("G", 1, spannoid));
         viewer.newSample(spannoid.getState(), 0, 0);
-        updater.expandEdge(spannoid, getVertexByName("D", 0, spannoid), getVertexByName("D", 1, spannoid));
-        viewer.newSample(spannoid.getState(), 0, 0);
+        //updater.expandEdge(spannoid, getVertexByName("D", 0, spannoid), getVertexByName("D", 1, spannoid));
+        //viewer.newSample(spannoid.getState(), 0, 0);
         updater.expandEdge(spannoid, getVertexByName("B", 0, spannoid), getVertexByName("B", 1, spannoid));
         viewer.newSample(spannoid.getState(), 0, 0);
     }
@@ -833,7 +842,7 @@ public class Spannoid extends Stoppable implements ITree {
 
             source.fullWin();
             source.parent.fullWin();
-            bpp += source.hmm2Align();
+            bpp += source.hmm2AlignWithRecalc();
 
             source.calcAllUp();
 
@@ -888,12 +897,17 @@ public class Spannoid extends Stoppable implements ITree {
             spannoid.setupInnerBlackNodes();
         }
 
+        private void swapAlignment(Vertex child, Vertex parent, Direction direction) {
+            swapAlignmentWithoutRecalc(child, parent, direction);
+            parent.calcAllUp();
+        }
+
         /**
          * Swaps the alignment between child and parent.
          * @param child
          * @param parent Parent needs to be parent of child!
          */
-        private void swapAlignment(Vertex child, Vertex parent, Direction direction) {
+        private void swapAlignmentWithoutRecalc(Vertex child, Vertex parent, Direction direction) {
             // Realign cur and parent
             AlignColumn acNewLeaf = parent.first;
             AlignColumn acNewParent = child.first;
@@ -934,6 +948,20 @@ public class Spannoid extends Stoppable implements ITree {
             parent.last.orphan = child.last.orphan;
             child.last.orphan = false;
 
+            // Reset pointers from previous parent to child.
+            for (AlignColumn ac = parent.first; ac != null; ac = ac.next) {
+                if (parent.left == child)
+                    ac.left = null;
+                else if (parent.right == child)
+                    ac.right = null;
+            }
+
+            if (parent.left == child)
+                parent.left = null;
+            else if (parent.right == child)
+                parent.right = null;
+
+            // Change tree topology
             parent.last.parent = child.last;
             child.last.parent = null;
             parent.parent = child;
@@ -945,6 +973,10 @@ public class Spannoid extends Stoppable implements ITree {
                 child.last.right = parent.last;
                 child.right = parent;
             }
+
+            parent.checkPointers();
+
+            parent.edgeChangeUpdate();
             child.edgeChangeUpdate();
 
             child.checkPointers();
@@ -1124,7 +1156,7 @@ public class Spannoid extends Stoppable implements ITree {
             for (int i = 0; i < direction.length - 1; i++) {
                 Vertex nextChild = direction[i+1].getChild(child);
 
-                swapAlignment(child, parent, direction[i+1]);
+                swapAlignmentWithoutRecalc(child, parent, direction[i+1]);
 
                 parent = child;
                 child = nextChild;
@@ -1132,6 +1164,8 @@ public class Spannoid extends Stoppable implements ITree {
 
             child.edgeChangeUpdate();
             // child.checkPointers();
+
+            labelRoot.calcAllUp();
         }
 
         /**
@@ -1178,10 +1212,8 @@ public class Spannoid extends Stoppable implements ITree {
             }
 
             oldParent.left = null; // TODO: Check if it's right!
-            ////////////////
             for (AlignColumn ac = oldParent.first; ac != null; ac = ac.next)
                 ac.left = null;
-            ////////////////
 
             newRoot.edgeChangeUpdate();
             drawNewAlignment(newRoot);
@@ -1197,6 +1229,8 @@ public class Spannoid extends Stoppable implements ITree {
 
         private void makeFakeAlignment(Vertex vertex) {
             AlignColumn fake = new AlignColumn(vertex);
+            fake.orphan = false;
+
             vertex.first = fake;
             vertex.last = fake;
             vertex.length = 0;
@@ -1240,7 +1274,7 @@ public class Spannoid extends Stoppable implements ITree {
             vertex.right.edgeChangeUpdate();
             vertex.edgeChangeUpdate();
 
-            vertex.hmm3AlignWithSave();
+            vertex.hmm3AlignWithRecalc();
             vertex.checkPointers();
         }
 
@@ -1395,12 +1429,138 @@ public class Spannoid extends Stoppable implements ITree {
             }
         }
 
+        public ContractEdgeResult contractEdge(Spannoid spannoid, Vertex labeled) {
+            final Vertex steiner = labeled.parent;
+            final Tree originalComponent = labeled.owner;
+
+            // Backup the entire tree
+            backupTree(originalComponent.root);
+
+            // SPECIAL CASE: Steiner is the fake root vertex!
+            if (steiner.parent == null) {
+                throw new RuntimeException("Not yet implemented!");
+            }
+
+            Tree upComponent = createEmptyComponent(originalComponent.getSubstitutionModel());
+            Tree downComponent = createEmptyComponent(originalComponent.getSubstitutionModel());
+
+            Vertex up = new Vertex(upComponent, 1);
+            Vertex down = new Vertex(downComponent, 1);
+
+            // Handle up component
+            upComponent.root = originalComponent.root;
+
+            copyAlignColumn(up, labeled);
+            up.parent = steiner.parent;
+            if (steiner.parent.left == steiner) {
+                steiner.parent.left = up;
+                for (AlignColumn ac = steiner.parent.first; ac != steiner.parent.last; ac = ac.next)
+                    ac.left = null;
+                steiner.parent.last.left = up.last;
+            } else if (steiner.parent.right == steiner) {
+                steiner.parent.right = up;
+                for (AlignColumn ac = steiner.parent.first; ac != steiner.parent.last; ac = ac.next)
+                    ac.right = null;
+                steiner.parent.last.right = up.last;
+            } else
+                throw new RuntimeException();
+
+            for (AlignColumn ac = up.first; ac != up.last; ac = ac.next) {
+                ac.orphan = true;
+                ac.parent = steiner.parent.last;
+            }
+            up.last.orphan = false;
+            up.last.parent = steiner.parent.last;
+            up.edgeChangeUpdate();
+            up.parent.edgeChangeUpdate();
+            up.fullWin();
+            up.parent.fullWin();
+            up.hmm2AlignWithRecalc(); // TODO: Pick better alignment!
+
+            // Handle down component
+            Vertex brother = labeled.brother();
+            copyAlignColumn(down, labeled);
+            for (AlignColumn ac = down.first; ac != null; ac = ac.next)
+                ac.parent = null;
+
+            brother.parent = down;
+            down.left = brother;
+            down.parent = null;
+
+            for (AlignColumn ac = brother.first; ac != brother.last; ac = ac.next) {
+                ac.orphan = true;
+                ac.parent = down.last;
+            }
+            brother.last.orphan = false;
+            brother.last.parent = down.last;
+            down.last.left = brother.last;
+
+            dfsMoveVertex(down, null, downComponent);
+            dfsMoveVertex(up, null, upComponent);
+
+            final Vertex rootAt = getRandomNode(brother, down);
+            Vertex newRoot = rerootComponent(rootAt);
+            downComponent.vertex.add(newRoot);
+            downComponent.root = newRoot;
+
+            newRoot.checkPointers();
+            brother.checkPointers();
+            down.checkPointers();
+            down.parent.checkPointers();
+
+            down.parent.edgeChangeUpdate();
+            down.parent.fullWin();
+            down.edgeChangeUpdate();
+            down.fullWin();
+            down.hmm2AlignWithRecalc();
+
+            down.checkPointers();
+            down.parent.checkPointers();
+            brother.checkPointers();
+            newRoot.checkPointers();
+
+            upComponent.root.calcFelsRecursively();
+            upComponent.root.calcIndelLikeRecursively();
+            downComponent.root.calcFelsRecursively();
+            downComponent.root.calcIndelLikeRecursively();
+
+            // Update Spannoid information
+            final int before = spannoid.components.size();
+            spannoid.components.remove(steiner.owner);
+            spannoid.components.add(upComponent);
+            spannoid.components.add(downComponent);
+            if (spannoid.components.size() != before + 1)
+                throw new RuntimeException("Components not added/removed correctly!");
+
+            int id = spannoid.labeledVertexIds.get(labeled);
+            Set<Vertex> connections = spannoid.componentConnections.get(id);
+            connections.remove(labeled);
+            connections.add(up);
+            connections.add(down);
+
+            spannoid.labeledVertexIds.remove(labeled);
+            spannoid.labeledVertexIds.put(up, id);
+            spannoid.labeledVertexIds.put(down, id);
+
+            spannoid.setupInnerBlackNodes();
+
+            upComponent.root.calcFelsRecursively();
+            upComponent.root.calcIndelLikeRecursively();
+            downComponent.root.calcFelsRecursively();
+            downComponent.root.calcIndelLikeRecursively();
+
+            checkSpannoid(spannoid);
+
+            return new ContractEdgeResult(spannoid, labeled, steiner, up, down);
+        }
+
         /**
          * Assumes edge/vertex is contractable!
          * @param spannoid The Spannoid
          * @param labeled A labeled node adjacent to steiner which should be contracted onto steiner.
          * @return The back-proposal of the move.
          */
+        /*
         public ContractEdgeResult contractEdge(Spannoid spannoid, Vertex labeled) {
             final Vertex originalSteiner = labeled.parent;
             Vertex steiner = originalSteiner;
@@ -1414,14 +1574,8 @@ public class Spannoid extends Stoppable implements ITree {
             for (Vertex v : steiner.owner.vertex)
                 v.checkPointers();
 
-            /*
-             * SPECIAL CASE: Fake root is a parent of labeled (steiner is fake root)
-             */
-
-            boolean specialCase = false;
+            // SPECIAL CASE: Fake root is a parent of labeled (steiner is fake root)
             if (steiner.parent == null) {
-                specialCase = true;
-
                 Vertex brother = labeled.brother();
 
                 // Swap alignment of labeled and fake root.
@@ -1456,9 +1610,7 @@ public class Spannoid extends Stoppable implements ITree {
                 steiner = labeled.parent;
             }
 
-            /*
-             * Parent Component
-             */
+            // Parent Component
             Tree parentComponent = createEmptyComponent(spannoid.getSubstitutionModel());
             Vertex parentLeaf = new Vertex(parentComponent, steiner.edgeLength + labeled.edgeLength / 2);
 
@@ -1485,7 +1637,23 @@ public class Spannoid extends Stoppable implements ITree {
                 steiner.right = labeled;
             else
                 throw new RuntimeException("Fail!");
-            updateAlignColumnReferences(labeled, parentLeaf);
+            // updateAlignColumnReferences(labeled, parentLeaf);
+
+            Map<AlignColumn, AlignColumn> foo = new HashMap<AlignColumn, AlignColumn>();
+            AlignColumn parentLeafAC = parentLeaf.first;
+            for (AlignColumn labeledAC = labeled.first; labeledAC != null; labeledAC = labeledAC.next) {
+                foo.put(parentLeafAC, labeledAC);
+                parentLeafAC = parentLeafAC.next;
+            }
+
+            for (AlignColumn ac = steiner.first; ac != null; ac = ac.next) {
+                if (foo.containsKey(ac.left))
+                    ac.left = foo.get(ac.left);
+                else if (foo.containsKey(ac.right))
+                    ac.right = foo.get(ac.right);
+            }
+
+            labeled.checkPointers();
 
             // Copy vertices to new component
             parentComponent.vertex.add(parentLeaf);
@@ -1512,9 +1680,7 @@ public class Spannoid extends Stoppable implements ITree {
                 root = root.parent;
             parentComponent.root = root;
 
-            /*
-             * Child Component
-             */
+            // Child Component
             Vertex subTree = labeled.brother();
 
             Tree childComponent = createEmptyComponent(spannoid.getSubstitutionModel());
@@ -1524,9 +1690,7 @@ public class Spannoid extends Stoppable implements ITree {
             copyAlignColumn(childLeaf, labeled);
             dfsMoveVertex(subTree, labeled.parent, childComponent);
 
-            /*
-             * Make a fake initial alignment.
-             */
+            // Make a fake initial alignment.
             for (AlignColumn ac = childLeaf.first; ac != childLeaf.last; ac = ac.next) {
                 ac.parent = null;
                 ac.left = null;
@@ -1555,14 +1719,16 @@ public class Spannoid extends Stoppable implements ITree {
             childLeaf.edgeChangeUpdate();
             childLeaf.parent.edgeChangeUpdate();
 
-            /*
-             * Make a better alignment drawn from HMM2.
-             */
+            childLeaf.checkPointers();
+
+            // Make a better alignment drawn from HMM2.
             childLeaf.fullWin();
             childLeaf.parent.fullWin();
             childLeaf.edgeChangeUpdate();
             childLeaf.parent.edgeChangeUpdate();
-            childLeaf.hmm2AlignWithSave();
+            childLeaf.hmm2AlignWithRecalc();
+
+            childLeaf.checkPointers();
 
             // childLeaf.left = null;
 
@@ -1621,6 +1787,7 @@ public class Spannoid extends Stoppable implements ITree {
 
             return new ContractEdgeResult(spannoid, labeled, originalSteiner, parentLeaf, childLeaf);
         }
+        */
 
         public void revertEdgeContraction(ContractEdgeResult contraction)
         {
@@ -1761,7 +1928,7 @@ public class Spannoid extends Stoppable implements ITree {
             v.parent.edgeChangeUpdate();
 
             v.checkPointers();
-            v.hmm2AlignWithSave();
+            v.hmm2AlignWithRecalc();
         }
 
         public class ExpandEdgeResult {
@@ -1838,14 +2005,14 @@ public class Spannoid extends Stoppable implements ITree {
                     case LEFT:
                         otherSubtree = fakeRoot.right;
                         fakeRoot.right = null;
-                        for (AlignColumn ac = fakeRoot.first; ac != fakeRoot.last; ac = ac.next)
+                        for (AlignColumn ac = fakeRoot.first; ac != null; ac = ac.next)
                             ac.right = null;
                         break;
 
                     case RIGHT:
                         otherSubtree = fakeRoot.left;
                         fakeRoot.left = null;
-                        for (AlignColumn ac = fakeRoot.first; ac != fakeRoot.last; ac = ac.next)
+                        for (AlignColumn ac = fakeRoot.first; ac != null; ac = ac.next)
                             ac.left = null;
                         break;
 
@@ -1881,10 +2048,11 @@ public class Spannoid extends Stoppable implements ITree {
                 else
                     throw new RuntimeException();
                 alignAlignment(otherSubtree, fakeRoot, fakeRoot.parent);
+                otherSubtree.calcAllUp();
             }
 
-            steiner.hmm3AlignWithSave();
-            steiner.hmm2AlignWithSave();
+            steiner.hmm3AlignWithRecalc();
+            steiner.hmm2AlignWithRecalc();
 
             dfsMoveVertex(up.owner.root, null, newComponent);
             newComponent.root = up.owner.root;
@@ -1893,6 +2061,9 @@ public class Spannoid extends Stoppable implements ITree {
             newComponent.root.calcIndelLikeRecursively();
 
             changeOwnerVertices(newComponent, newComponent.root);
+
+            newComponent.root.calcFelsRecursively();
+            newComponent.root.calcIndelLikeRecursively();
 
             /*
              * Update spannoid information

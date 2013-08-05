@@ -900,10 +900,11 @@ public class Vertex {
         //		System.out.println("saveLeft: "+saveLeft+" saveRight: "+saveRight+" length: "+length);
 
 
-        // 	left.calcOrphan();
-        // 	right.calcOrphan();
-        // 	calcFelsen();
-        // 	calcIndelLogLike();
+//        left.calcOrphan();
+//        right.calcOrphan();
+//        calcFelsen();
+//        calcIndelLogLike();
+
         //	System.out.println("printing the alignments at the root of this subtree: "+print());
         //System.out.println("pointers");
         //String[] s = left.printedAlignment();
@@ -914,6 +915,14 @@ public class Vertex {
         return retVal.value;
     }
 
+    public double hmm3AlignWithRecalc() {
+        double res = hmm3Align();
+        left.calcOrphan();
+        right.calcOrphan();
+        calcFelsen();
+        calcIndelLogLike();
+        return res;
+    }
 
     /**
      * Samples a new alignment between `this' &amp; `this.left' &amp; `this.right', taking window sizes
@@ -1233,12 +1242,21 @@ public class Vertex {
         //for(c = winFirst.prev; c != null && c.parent == parent.old.winFirst; c = c.prev)
         //  c.parent = parent.winFirst;
 
-        //calcOrphan();
-        //parent.calcFelsen();
-        //parent.calcOrphan();
-        //parent.calcIndelLogLike();
+        // calcOrphan();
+        // parent.calcFelsen();
+        // parent.calcOrphan();
+        // parent.calcIndelLogLike();
 
         return retVal.value;
+    }
+
+    public double hmm2AlignWithRecalc() {
+        double res = hmm2Align();
+        calcOrphan();
+        parent.calcFelsen();
+        parent.calcOrphan();
+        parent.calcIndelLogLike();
+        return res;
     }
 
     /**
@@ -2880,6 +2898,10 @@ public class Vertex {
         }
 
         if (first.prev != null || last.next != null)
+            throw new RuntimeException();
+
+        if (last.orphan == true || (parent != null && last.parent != parent.last) ||
+                (left != null && last.left != left.last) || (right != null && last.right != right.last))
             throw new RuntimeException();
     }
 
