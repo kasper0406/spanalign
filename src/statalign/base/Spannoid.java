@@ -747,12 +747,16 @@ public class Spannoid extends Stoppable implements ITree {
         public double moveSubtree(Spannoid spannoid, Vertex source, Vertex dest){
             double bpp = 0;
 
-            // TODO: proposal probability of selecting source --> dest
+            // proposal probability of selecting source --> dest
+            bpp -= Math.log(spannoid.innerBlackNodes.size());
+            bpp -= Math.log(getDestinationVerticesFromSourceMoveComponent(spannoid, source).size());
 
             // Update internal Spannoid structure
             moveComponent(spannoid, source, dest);
 
-            // TODO: backproposal probability of selecting dest --> source
+            // backproposal probability of selecting dest --> source
+            bpp += Math.log(spannoid.innerBlackNodes.size());
+            bpp += Math.log(getDestinationVerticesFromSourceMoveComponent(spannoid, dest).size());
 
             source.fullWin();
             source.parent.fullWin();
@@ -861,6 +865,12 @@ public class Spannoid extends Stoppable implements ITree {
         }
 
         public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
+            List<Vertex> destSet = getDestinationVerticesFromSourceMoveComponent(spannoid, source);
+            int k = Utils.generator.nextInt(destSet.size());
+            return destSet.get(k);
+        }
+
+        private List<Vertex> getDestinationVerticesFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
             List<Vertex> destSet = new ArrayList<Vertex>();
             Set<Vertex> connected = spannoid.componentConnections.get(spannoid.labeledVertexIds.get(source));
             for (Vertex con : connected) {
@@ -871,8 +881,7 @@ public class Spannoid extends Stoppable implements ITree {
                     }
                 }
             }
-            int k = Utils.generator.nextInt(destSet.size());
-            return destSet.get(k);
+            return destSet;
         }
     }
 }
