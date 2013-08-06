@@ -1,8 +1,11 @@
 package statalign.base;
 
 public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spannoid.SpannoidUpdater> {
+    private Spannoid.Transplanter transplanter;
+
     public SpannoidMCMCStrategy(Spannoid spannoid) {
         super(spannoid, new Spannoid.SpannoidUpdater());
+        transplanter = new Spannoid.Transplanter(spannoid);
     }
 
     @Override
@@ -18,31 +21,9 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         return sampleEdge(vertex);
     }
 
-
     private boolean sampleInnerTopology() {
         Tree component = updater.getRandomComponent(tree);
         return sampleTopology(component);
-    }
-
-    private boolean sampleMoveComponents(){
-        double oldLogLi = tree.getLogLike();
-
-        Vertex source = updater.getRandomInnerBlack(tree);
-        Vertex prev = updater.getConnection(tree, source);
-        Vertex dest = updater.getDestinationFromSourceMoveComponent(tree, source);
-
-        double bpp = updater.moveSubtree(tree, source, dest);
-
-        double newLogLi = tree.getLogLike();
-
-        if (Math.log(Utils.generator.nextDouble()) < bpp
-                + (newLogLi - oldLogLi) * tree.getHeat()) {
-            return true;
-        } else {
-            updater.restoreSubtree(tree, source, prev);
-
-            return false;
-        }
     }
 
     /*
@@ -60,7 +41,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
                 // return sampleInnerTopology();
                 return false;
             case 1:
-                return sampleMoveComponents();
+                return transplanter.sample();
             default:
                 return false;
         }

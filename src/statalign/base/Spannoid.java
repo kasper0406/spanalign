@@ -9,12 +9,9 @@ import statalign.model.subst.SubstitutionModel;
 import statalign.model.subst.plugins.Kimura3;
 import statalign.postprocess.plugins.TreeNode;
 import statalign.postprocess.utils.NewickParser;
-import sun.misc.IOUtils;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.StringWriter;
 import java.util.*;
 
 public class Spannoid extends Stoppable implements ITree {
@@ -53,8 +50,6 @@ public class Spannoid extends Stoppable implements ITree {
      */
     private Map<Integer, Set<Vertex>> componentConnections = new HashMap<Integer, Set<Vertex>>();
     private Map<Vertex, Integer> labeledVertexIds = new HashMap<Vertex, Integer>();
-    private List<Integer> innerBlackNodes = new ArrayList<Integer>();
-
 
 
     private double heat = 1.0d;
@@ -92,7 +87,6 @@ public class Spannoid extends Stoppable implements ITree {
             createComponents(root, model, nameMap, convertedSequences, sequences);
         }
         scanner.close();
-        setupInnerBlackNodes();
     }
 
     /**
@@ -153,7 +147,6 @@ public class Spannoid extends Stoppable implements ITree {
     {
         this.substitutionModel = model;
         constructFromNewick(newick, sequences, nameMap, model, ss);
-        setupInnerBlackNodes();
     }
 
     private void constructFromNewick(String newick, String[] sequences, Map<String, Integer> nameMap,
@@ -315,20 +308,6 @@ public class Spannoid extends Stoppable implements ITree {
 
         return labeledNodes;
     }
-
-    private void setupInnerBlackNodes(){
-        innerBlackNodes = new ArrayList<Integer>();
-        /// loop through all the nodes and build the inner black nodes list
-        for (int i = 0; i < n; i++){
-            if(componentConnections.get(i).size() > 1){
-                innerBlackNodes.add(i);
-
-            }
-
-        }
-
-    }
-
 
     private void addChildToVertex(Vertex parent, Vertex child) {
         child.parent = parent;
@@ -725,44 +704,102 @@ public class Spannoid extends Stoppable implements ITree {
         }
 
 
-        public Vertex getRandomInnerBlack(Spannoid spannoid){
-            int j = Utils.generator.nextInt(spannoid.innerBlackNodes.size());
-            Integer index = spannoid.innerBlackNodes.get(j);
-            Set<Vertex> neighborhood = spannoid.componentConnections.get(index);
-            Vertex[] overlapping_vertices = neighborhood.toArray(new Vertex[0]);
-            int k = Utils.generator.nextInt(overlapping_vertices.length);
-            return overlapping_vertices[k];
+
+    }
+
+    static class Transplanter extends MCMCMove<Spannoid, TransplantResult> {
+        public Transplanter(Spannoid tree) {
+            super(tree);
         }
 
-        public Vertex getConnection(Spannoid spannoid, Vertex vertex) {
-            int id = spannoid.labeledVertexIds.get(vertex);
-            Set<Vertex> connections = spannoid.componentConnections.get(id);
-            for (Vertex v : connections) {
-                if (v != vertex)
-                    return v;
+        @Override
+        protected TransplantResult jump() {
+            TransplantResult result = new TransplantResult();
+
+            // choose source vertex
+            List<Vertex> sources = getSources();
+            result.source = sources.get(Utils.generator.nextInt(sources.size()));
+            result.bpp -= Math.log(sources.size());
+
+            // choose destination vertex
+            List<Vertex> destinations = getDestinations(result.source);
+            result.destination = destinations.get(Utils.generator.nextInt(destinations.size()));
+            result.bpp -= Math.log(destinations.size());
+
+            // where to move the source vertex back to in case of rejection
+            result.prev = getArbitraryNeighbour(result.source);
+
+            result.bpp += moveSubtree(result.source, result.destination);
+
+            result.bpp += Math.log(getSources().size());
+            result.bpp += Math.log(getDestinations(result.destination).size());
+
+            return result;
+        }
+
+        @Override
+        protected void restore(TransplantResult result) {
+            restoreSubtree(result.source, result.prev);
+        }
+
+        private List<Vertex> getSources(){
+            List<Vertex> sources = new ArrayList<Vertex>();
+
+            for (int i = 0; i < tree.n; i++) {
+                Set<Vertex> neighborhood = tree.componentConnections.get(i);
+                if (neighborhood.size() > 1) {
+                    sources.addAll(neighborhood);
+                }
             }
+
+            return sources;
+        }
+
+        private Vertex getArbitraryNeighbour(Vertex vertex) {
+            int vertexId = tree.labeledVertexIds.get(vertex);
+            Set<Vertex> neighbourhood = tree.componentConnections.get(vertexId);
+            for (Vertex neighbour : neighbourhood) {
+                if (neighbour != vertex) {
+                    return neighbour;
+                }
+            }
+
+            // should never reach this
             return null;
         }
 
-        public double moveSubtree(Spannoid spannoid, Vertex source, Vertex dest){
+        private List<Vertex> getDestinations(Vertex source) {
+            List<Vertex> destinations = new ArrayList<Vertex>();
+
+            int sourceId = tree.labeledVertexIds.get(source);
+            Set<Vertex> neighbourhood = tree.componentConnections.get(sourceId);
+
+            for (Vertex neighbour : neighbourhood) {
+                if (neighbour == source) {
+                    continue;
+                }
+
+                for (Vertex v : neighbour.owner.vertex) {
+                    if (v != neighbour && v.name != null) {
+                        destinations.add(v);
+                    }
+                }
+            }
+
+            return destinations;
+        }
+
+        private double moveSubtree(Vertex source, Vertex dest){
+            // update internal Spannoid structure
+            moveComponent(source, dest);
+
             double bpp = 0;
-
-            // proposal probability of selecting source --> dest
-            bpp -= Math.log(spannoid.innerBlackNodes.size());
-            bpp -= Math.log(getDestinationVerticesFromSourceMoveComponent(spannoid, source).size());
-
-            // Update internal Spannoid structure
-            moveComponent(spannoid, source, dest);
-
-            // backproposal probability of selecting dest --> source
-            bpp += Math.log(spannoid.innerBlackNodes.size());
-            bpp += Math.log(getDestinationVerticesFromSourceMoveComponent(spannoid, dest).size());
 
             source.fullWin();
             source.parent.fullWin();
             bpp += source.hmm2BackProp();
 
-            // Update Vertex with new information and alignment
+            // update vertex information
             source.seq = dest.seq;
             source.length = dest.length;
             source.name = dest.name;
@@ -802,10 +839,11 @@ public class Spannoid extends Stoppable implements ITree {
                 }
             }
 
-            if (source.parent.left == source)
+            if (source.parent.left == source) {
                 source.parent.last.left = source.last;
-            else
+            } else {
                 source.parent.last.right = source.last;
+            }
 
             source.fullWin();
             source.parent.fullWin();
@@ -816,24 +854,26 @@ public class Spannoid extends Stoppable implements ITree {
             return bpp;
         }
 
-        public void restoreSubtree(Spannoid spannoid, Vertex source, Vertex prev){
-            // Update internal Spannoid structure
-            moveComponent(spannoid, source, prev);
+        private void restoreSubtree(Vertex source, Vertex prev){
+            // update internal Spannoid structure
+            moveComponent(source, prev);
 
-            // Update Vertex with new information and alignment
+            // restore old vertex information
             source.seq = prev.seq;
             source.length = prev.length;
             source.name = prev.name;
 
-            // Restore original alignment
+            // restore old alignment
             source.first = source.old.first;
             source.last = source.old.last;
+
+            boolean isLeft = (source.parent.left == source);
 
             AlignColumn c = source.first;
             AlignColumn p = source.parent.first;
             while (p != null) {
                 if (c.parent != p) {
-                    if (source.parent.left == source) {
+                    if (isLeft) {
                         p.left = null;
                     } else {
                         p.right = null;
@@ -842,7 +882,7 @@ public class Spannoid extends Stoppable implements ITree {
                 } else if (c.orphan) {
                     c = c.next;
                 } else {
-                    if (source.parent.left == source) {
+                    if (isLeft) {
                         p.left = c;
                     } else {
                         p.right = c;
@@ -855,33 +895,18 @@ public class Spannoid extends Stoppable implements ITree {
             source.calcAllUp();
         }
 
-        private void moveComponent(Spannoid spannoid, Vertex source, Vertex dest) {
-            int vId = spannoid.labeledVertexIds.get(source);
-            spannoid.componentConnections.get(vId).remove(source);
-            int destId = spannoid.labeledVertexIds.get(dest);
-            spannoid.componentConnections.get(destId).add(source);
-            spannoid.labeledVertexIds.put(source, destId);
-            spannoid.setupInnerBlackNodes();
-        }
+        private void moveComponent(Vertex source, Vertex destination) {
+            int sourceId = tree.labeledVertexIds.get(source);
+            int destinationId = tree.labeledVertexIds.get(destination);
 
-        public Vertex getDestinationFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
-            List<Vertex> destSet = getDestinationVerticesFromSourceMoveComponent(spannoid, source);
-            int k = Utils.generator.nextInt(destSet.size());
-            return destSet.get(k);
-        }
+            tree.componentConnections.get(sourceId).remove(source);
+            tree.componentConnections.get(destinationId).add(source);
 
-        private List<Vertex> getDestinationVerticesFromSourceMoveComponent(Spannoid spannoid, Vertex source) {
-            List<Vertex> destSet = new ArrayList<Vertex>();
-            Set<Vertex> connected = spannoid.componentConnections.get(spannoid.labeledVertexIds.get(source));
-            for (Vertex con : connected) {
-                if (con != source) {
-                    for (Vertex v : con.owner.vertex) {
-                        if (v != con && v.name != null)
-                            destSet.add(v);
-                    }
-                }
-            }
-            return destSet;
+            tree.labeledVertexIds.put(source, destinationId);
         }
     }
+}
+
+class TransplantResult extends MCMCResult {
+    Vertex source, destination, prev;
 }

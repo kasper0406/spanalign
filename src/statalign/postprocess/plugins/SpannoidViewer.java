@@ -134,6 +134,9 @@ public class SpannoidViewer extends Postprocess {
 
         @Override
         public Dimension getPreferredSize() {
+            if (image == null) {
+                return new Dimension(100,100);
+            }
             return new Dimension(image.getWidth(), image.getHeight());
         }
     }
