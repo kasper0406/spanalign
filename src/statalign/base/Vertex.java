@@ -1212,14 +1212,13 @@ public class Vertex {
 
             if (hmm2Parent[prevk] != 0) {
                 p = p.prev;
-                /*
-		  if(isLeft){
-		  p.left = null;
-		  }
-		  else{
-		  p.right = null;
-		  }
-				 */
+
+    		    if(isLeft) {
+	        	    p.left = null;
+                } else {
+		            p.right = null;
+		        }
+
                 previ--;
                 parent.winLength++;
             }
@@ -1252,11 +1251,17 @@ public class Vertex {
     }
 
     public double hmm2AlignWithRecalc() {
+        double probMatrix[][][] = hmm2ProbMatrix();
+
         double res = hmm2Align();
+
         calcOrphan();
         parent.calcFelsen();
         parent.calcOrphan();
         parent.calcIndelLogLike();
+
+        //calcOrphan();
+        //calcAllUp();
         return res;
     }
 
@@ -1502,7 +1507,8 @@ public class Vertex {
             left.fullWin();
             right.fullWin();
 
-            ret += hmm3AlignWithSave();
+            // ret += hmm3AlignWithSave();
+            ret += hmm3AlignWithRecalc();
 
             return ret;
         }
@@ -2824,7 +2830,6 @@ public class Vertex {
                 winLastFound = i;
             i++;
 
-            /*
             if (p.owner != this)
                 throw new RuntimeException("Invalid owner!");
 
@@ -2833,7 +2838,6 @@ public class Vertex {
 
             if ((p.left != null && p.left.owner != left) || (p.right != null && p.right.owner != right))
                 throw new RuntimeException("Invalid owner to side");
-                */
 
             if (p.left != null && (p.left.orphan || p.left.parent != p)) {
                 throw new Error("Problem is vertex " + this + ":\np is: " + p + " p.left is " + p.left + " p.left.orphan: " + p.left.orphan +

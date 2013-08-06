@@ -1235,7 +1235,6 @@ public class Spannoid extends Stoppable implements ITree {
             for (AlignColumn ac = oldParent.first; ac != null; ac = ac.next)
                 ac.left = null;
 
-            newRoot.edgeChangeUpdate();
             drawNewAlignment(newRoot);
 
             newRoot.left.checkPointers();
@@ -1257,27 +1256,23 @@ public class Spannoid extends Stoppable implements ITree {
 
             // Null check are required because of labeled root node at intermediate representation.
             if (vertex.left != null) {
-                AlignColumn ac = vertex.left.first;
-                while (ac != vertex.left.last) {
+                for (AlignColumn ac = vertex.left.first; ac != vertex.left.last; ac = ac.next) {
                     ac.orphan = true;
                     ac.parent = fake;
-                    ac = ac.next;
                 }
-                ac.parent = fake;
-                ac.orphan = false;
-                fake.left = ac;
+                vertex.left.last.parent = fake;
+                vertex.left.last.orphan = false;
+                fake.left = vertex.left.last;
             }
 
             if (vertex.right != null) {
-                AlignColumn ac = vertex.right.first;
-                while (ac != vertex.right.last) {
+                for (AlignColumn ac = vertex.right.first; ac != vertex.right.last; ac = ac.next) {
                     ac.orphan = true;
                     ac.parent = fake;
-                    ac = ac.next;
                 }
-                ac.parent = fake;
-                ac.orphan = false;
-                fake.right = ac;
+                vertex.right.last.parent = fake;
+                vertex.right.last.orphan = false;
+                fake.right = vertex.right.last;
             }
         }
 
@@ -1454,7 +1449,7 @@ public class Spannoid extends Stoppable implements ITree {
             final Tree originalComponent = labeled.owner;
 
             // Backup the entire tree
-            // backupTree(originalComponent.root);
+            backupTree(originalComponent.root);
 
             // SPECIAL CASE: Steiner is the fake root vertex!
             if (steiner.parent == null) {
@@ -1506,15 +1501,6 @@ public class Spannoid extends Stoppable implements ITree {
             dfsMoveVertex(up, null, upComponent);
 
             up.calcIndelLogLikeUp();
-            for (Vertex v : upComponent.vertex)
-                v.checkPointers();
-
-            upComponent.root.doMyRecAlign();
-            upComponent.root.calcFelsRecursively();
-            upComponent.root.calcIndelLikeRecursively();
-
-            for (Vertex v : upComponent.vertex)
-                v.checkPointers();
 
             // Handle down component
             Vertex brother = labeled.brother();
@@ -1534,36 +1520,32 @@ public class Spannoid extends Stoppable implements ITree {
             brother.last.parent = down.last;
             down.last.left = brother.last;
 
+            down.checkPointers();
+            brother.checkPointers();
+
             dfsMoveVertex(down, null, downComponent);
 
-            // final Vertex rootAt = getRandomNode(brother, down);
-            final Vertex rootAt = down;
+            final Vertex rootAt = getRandomNode(brother, down);
             Vertex newRoot = rerootComponent(rootAt);
             downComponent.vertex.add(newRoot);
             downComponent.root = newRoot;
 
-            /*
-            down.parent.edgeChangeUpdate();
-            down.parent.fullWin();
-            down.edgeChangeUpdate();
-            down.fullWin();
-            down.hmm2AlignWithRecalc();
-            */
+            down.checkPointers();
+
+            if (rootAt != down) {
+                down.parent.edgeChangeUpdate();
+                down.edgeChangeUpdate();
+                down.parent.fullWin();
+                down.fullWin();
+
+                down.hmm2AlignWithRecalc();
+                down.calcAllUp();
+            }
 
             down.checkPointers();
             down.parent.checkPointers();
             brother.checkPointers();
             newRoot.checkPointers();
-
-            // TODO: Testing...
-            downComponent.root.doMyRecAlign();
-
-            upComponent.root.calcFelsRecursively();
-            upComponent.root.calcIndelLikeRecursively();
-            downComponent.root.calcFelsRecursively();
-            downComponent.root.calcIndelLikeRecursively();
-
-            downComponent.root.doMyRecAlign();
 
             // Update Spannoid information
             final int before = spannoid.components.size();
@@ -1949,8 +1931,8 @@ public class Spannoid extends Stoppable implements ITree {
 
         public ExpandEdgeResult expandEdge(Spannoid spannoid, final Vertex up, final Vertex down)
         {
-            // backupTree(up.owner.root);
-            // backupTree(down.owner.root);
+            backupTree(up.owner.root);
+            backupTree(down.owner.root);
 
             final double R = spannoid.getR(), lambda = spannoid.getLambda(), mu = spannoid.getMu();
             Tree newComponent = createEmptyComponent(spannoid.getSubstitutionModel(), R, lambda, mu);
@@ -2298,6 +2280,10 @@ public class Spannoid extends Stoppable implements ITree {
         }
 
         public void checkSpannoid(Spannoid spannoid) {
+            spannoid.getR();
+            spannoid.getLambda();
+            spannoid.getMu();
+
             for (Tree component : spannoid.components) {
                 for (Vertex v : component.vertex)
                     v.checkPointers();

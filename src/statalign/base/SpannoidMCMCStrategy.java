@@ -84,11 +84,11 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
         Spannoid.SpannoidUpdater.ContractEdgeResult contraction = updater.contractEdge(tree, labeled);
 
-        // TODO: Added correct acceptance probs!
+        // TODO: Add correct acceptance probs!
         if (Utils.generator.nextDouble() <= 0.5) {
             return true;
         } else {
-            // updater.revertEdgeContraction(contraction);
+            updater.revertEdgeContraction(contraction);
             return false;
         }
     }
@@ -103,11 +103,11 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
         Spannoid.SpannoidUpdater.ExpandEdgeResult expansion = updater.expandEdge(tree, nodes[0], nodes[1]);
 
-        // TODO: Added correct acceptance probs!
-        if (Utils.generator.nextDouble() <= 0.2) {
+        // TODO: Add correct acceptance probs!
+        if (Utils.generator.nextDouble() <= 0.5) {
             return true;
         } else {
-            // updater.revertEdgeExpansion(expansion);
+            updater.revertEdgeExpansion(expansion);
             return false;
         }
     }

@@ -79,7 +79,7 @@ public class SpannoidViewer extends Postprocess {
         NewickParser parser = new NewickParser(tree);
         TreeNode root = parser.parse();
 
-        out.write("graph G {\n");
+        out.write("graph G { rankdir=LR; \n");
 
         Queue<TreeNode> queue = new LinkedList<TreeNode>();
         queue.add(root);
