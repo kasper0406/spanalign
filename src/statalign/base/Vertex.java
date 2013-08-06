@@ -2830,6 +2830,7 @@ public class Vertex {
                 winLastFound = i;
             i++;
 
+            /*
             if (p.owner != this)
                 throw new RuntimeException("Invalid owner!");
 
@@ -2838,6 +2839,7 @@ public class Vertex {
 
             if ((p.left != null && p.left.owner != left) || (p.right != null && p.right.owner != right))
                 throw new RuntimeException("Invalid owner to side");
+                */
 
             if (p.left != null && (p.left.orphan || p.left.parent != p)) {
                 throw new Error("Problem is vertex " + this + ":\np is: " + p + " p.left is " + p.left + " p.left.orphan: " + p.left.orphan +

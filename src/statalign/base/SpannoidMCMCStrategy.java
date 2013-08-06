@@ -77,11 +77,6 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         if (labeled == null)
             return false;
 
-        // TODO: Delete this code!
-        // Special case disabled for testing!
-        if (labeled.parent.parent == null)
-            return false;
-
         Spannoid.SpannoidUpdater.ContractEdgeResult contraction = updater.contractEdge(tree, labeled);
 
         // TODO: Add correct acceptance probs!
