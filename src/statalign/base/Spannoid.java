@@ -835,6 +835,8 @@ public class Spannoid extends Stoppable implements ITree {
                 child.right = parent;
             }
 
+            parent.edgeLength = child.edgeLength;
+
             parent.checkPointers();
 
             parent.edgeChangeUpdate();
@@ -1059,6 +1061,8 @@ public class Spannoid extends Stoppable implements ITree {
          * @param where Where to place the new fake root.
          */
         private Vertex rerootComponent(Vertex where) {
+            final double edgeSum = where.edgeLength;
+
             List<Direction> directions = new LinkedList<Direction>();
             Vertex oldParent = where;
             while (oldParent.parent != null) {
@@ -1074,10 +1078,12 @@ public class Spannoid extends Stoppable implements ITree {
             Collections.reverse(directions); // Get directions ordered from (current) parent to child.
             Direction[] directionsArray = directions.toArray(new Direction[0]);
 
+                    // Commented out code is for choosing newRoot with identity alignment. (Leads to reversibility problem).
             Vertex newRoot = new Vertex(where.owner, 1);
             if (where == oldParent) {
                 newRoot.left = oldParent.left;
                 newRoot.right = oldParent;
+                newRoot.right.edgeLength = 0;
 
                 oldParent.left.parent = newRoot;
                 oldParent.parent = newRoot;
@@ -1085,6 +1091,7 @@ public class Spannoid extends Stoppable implements ITree {
                 oldParent.left = null;
                 oldParent.right = null;
 
+                /*
                 copyAlignmentColumn(newRoot, newRoot.right);
 
                 AlignColumn oldParentAC = oldParent.first;
@@ -1106,25 +1113,30 @@ public class Spannoid extends Stoppable implements ITree {
 
                 for (AlignColumn ac = newRoot.left.first; ac != null; ac = ac.next)
                     ac.parent = ac.parent.parent;
+                    */
             } else {
                 final Vertex brotherSubtree = where.parent;
 
-                copyAlignmentColumn(newRoot, brotherSubtree);
+                //copyAlignmentColumn(newRoot, brotherSubtree);
 
                 // Swap the alignment and pointers from the root to the 'where' vertex.
                 swapPath(oldParent, directionsArray);
 
+                /*
                 if (directionsArray[directionsArray.length - 1] == Direction.LEFT) {
                     newRoot.right = brotherSubtree;
                     newRoot.left = where;
-                } else {
-                    newRoot.left = brotherSubtree;
-                    newRoot.right = where;
-                }
+                    newRoot.right.edgeLength = 0;
+                } else { */
+                newRoot.left = brotherSubtree;
+                newRoot.right = where;
+                //    newRoot.left.edgeLength = 0;
+                //}
 
                 brotherSubtree.parent = newRoot;
                 where.parent = newRoot;
 
+                /*
                 AlignColumn brotherSubtreeAC = brotherSubtree.first;
                 for (AlignColumn ac = newRoot.first; ac != null; ac = ac.next) {
                     ac.parent = null;
@@ -1149,15 +1161,18 @@ public class Spannoid extends Stoppable implements ITree {
 
                 for (AlignColumn ac = where.first; ac != null; ac = ac.next)
                     ac.parent = ac.parent.parent;
+                    */
             }
 
             oldParent.left = null;
             for (AlignColumn ac = oldParent.first; ac != null; ac = ac.next)
                 ac.left = null;
 
-            newRoot.edgeChangeUpdate();
-            newRoot.left.edgeChangeUpdate();
-            newRoot.right.edgeChangeUpdate();
+            double[] edgeSplit = splitEdgeLength(edgeSum);
+            newRoot.left.edgeLength = edgeSplit[0];
+            newRoot.right.edgeLength = edgeSplit[1];
+
+            drawNewAlignment(newRoot);
 
             newRoot.left.calcOrphan();
             newRoot.right.calcOrphan();
@@ -1170,6 +1185,12 @@ public class Spannoid extends Stoppable implements ITree {
             oldParent.edgeChangeUpdate();
 
             return newRoot;
+        }
+
+        private double[] splitEdgeLength(double edgeSum) {
+            final double e1 = Utils.generator.nextDouble() * edgeSum;
+            final double e2 = edgeSum - e1;
+            return new double[] { e1, e2 };
         }
 
         private void makeFakeAlignment(Vertex vertex) {
@@ -1381,6 +1402,7 @@ public class Spannoid extends Stoppable implements ITree {
             // SPECIAL CASE: Steiner is the fake root vertex!
             if (steiner.parent == null) {
                 Vertex brother = labeled.brother();
+                brother.edgeLength = labeled.edgeLength + brother.edgeLength;
 
                 // Swap alignment of labeled and fake root.
                 swapAlignment(labeled, steiner, Direction.LEFT);
@@ -1399,6 +1421,8 @@ public class Spannoid extends Stoppable implements ITree {
                 labeled.owner.root = newRoot;
                 labeled.owner.vertex.add(newRoot);
 
+                brother.edgeChangeUpdate();
+
                 steiner = labeled.parent;
             }
 
@@ -1408,8 +1432,10 @@ public class Spannoid extends Stoppable implements ITree {
             Tree upComponent = createEmptyComponent(originalComponent.getSubstitutionModel(), R, lambda, mu);
             Tree downComponent = createEmptyComponent(originalComponent.getSubstitutionModel(), R, lambda, mu);
 
-            Vertex up = new Vertex(upComponent, 1);
-            Vertex down = new Vertex(downComponent, 1);
+            // Create copy of nodes, with edge length corresponding to original case.
+            // (We ignore edge length of labeled node)
+            Vertex up = new Vertex(upComponent, steiner.edgeLength);
+            Vertex down = new Vertex(downComponent, labeled.brother().edgeLength);
 
             // Handle up component
             upComponent.root = originalComponent.root;
@@ -1618,7 +1644,9 @@ public class Spannoid extends Stoppable implements ITree {
 
             final double R = spannoid.getR(), lambda = spannoid.getLambda(), mu = spannoid.getMu();
             Tree newComponent = createEmptyComponent(spannoid.getSubstitutionModel(), R, lambda, mu);
-            Vertex labeled = new Vertex(newComponent, 1);
+
+            final double labeledEdgeLength = -Math.log(Utils.generator.nextDouble());
+            Vertex labeled = new Vertex(newComponent, labeledEdgeLength);
             copyVertex(labeled, up);
 
             Vertex steiner = new Vertex(newComponent, up.edgeLength);
@@ -1692,7 +1720,6 @@ public class Spannoid extends Stoppable implements ITree {
             Vertex brother = down.brother();
             steiner.right = brother;
             brother.parent = steiner;
-
             for (AlignColumn ac = brother.first; ac != brother.last; ac = ac.next) {
                 ac.parent = steiner.last;
                 ac.orphan = true;
@@ -1700,6 +1727,7 @@ public class Spannoid extends Stoppable implements ITree {
             brother.last.parent = steiner.last;
             brother.last.orphan = false;
             steiner.last.right = brother.last;
+            brother.edgeLength = down.edgeLength;
             brother.fullWin();
             brother.parent.fullWin();
             brother.edgeChangeUpdate();
@@ -1723,9 +1751,6 @@ public class Spannoid extends Stoppable implements ITree {
 
             dfsMoveVertex(up.owner.root, null, newComponent);
             newComponent.root = up.owner.root;
-
-            newComponent.root.calcFelsRecursively();
-            newComponent.root.calcIndelLikeRecursively();
 
             changeOwnerVertices(newComponent, newComponent.root);
 
@@ -1982,6 +2007,16 @@ public class Spannoid extends Stoppable implements ITree {
     static class Transplanter extends MCMCMove<Spannoid, TransplantResult> {
         public Transplanter(Spannoid tree) {
             super(tree);
+        }
+
+        private boolean canSample() {
+            return tree.getInnerLabelledVertices().size() > 0;
+        }
+
+        public boolean sample() {
+            if (!canSample())
+                return false;
+            return super.sample();
         }
 
         @Override
