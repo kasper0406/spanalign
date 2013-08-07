@@ -9,8 +9,11 @@ package statalign.base;
  */
 
 public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spannoid.SpannoidUpdater> {
+    private Spannoid.Transplanter transplanter;
+
     public SpannoidMCMCStrategy(Spannoid spannoid) {
         super(spannoid, new Spannoid.SpannoidUpdater());
+        transplanter = new Spannoid.Transplanter(spannoid);
     }
 
     @Override
@@ -31,7 +34,6 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         return res;
     }
 
-
     private boolean sampleInnerTopology() {
         updater.checkSpannoid(tree);
 
@@ -39,35 +41,6 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         boolean res = sampleTopology(component);
         updater.checkSpannoid(tree);
         return res;
-    }
-
-    private boolean sampleMoveComponents(){
-        updater.checkSpannoid(tree);
-
-        double oldLogLi = tree.getLogLike();
-
-        Vertex source = updater.getRandomInnerBlack(tree);
-        if (source == null)
-            return false;
-
-        Vertex prev = updater.getConnection(tree, source);
-        Vertex dest = updater.getDestinationFromSourceMoveComponent(tree, source);
-
-        double bpp = updater.moveSubtree(tree, source, dest);
-
-        double newLogLi = tree.getLogLike();
-
-        if (Math.log(Utils.generator.nextDouble()) < bpp
-                + (newLogLi - oldLogLi) * tree.getHeat()) {
-            updater.checkSpannoid(tree);
-            return true;
-        } else {
-            updater.restoreSubtree(tree, source, prev);
-
-            updater.checkSpannoid(tree);
-
-            return false;
-        }
     }
 
     private boolean sampleContract() {
@@ -128,7 +101,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
                 res = sampleInnerTopology();
                 break;
             case 1:
-                res = sampleMoveComponents();
+                res = transplanter.sample();
                 break;
             case 2:
                 res = sampleSplitMergeComponents();
