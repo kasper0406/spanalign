@@ -1,5 +1,9 @@
 package statalign.base;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 /**
  * !!!ATTENTION!!!
  *
@@ -46,14 +50,37 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
     private boolean sampleContract() {
         updater.checkSpannoid(tree);
 
-        Vertex labeled = updater.getLabeledNodeForContractions(tree);
-        if (labeled == null)
+        double oldLogLike = tree.getLogLike();
+
+        List<Vertex> choices = tree.getLabelledVerticesForContraction();
+        if (choices.size() == 0) {
             return false;
+        }
+
+        // choose a node and edge to contract
+        Vertex labeled = choices.get(Utils.generator.nextInt(choices.size()));
+        double bpp = -Math.log(choices.size());
+
+        // backproposal of choosing the contracted edge length
+        bpp += -(labeled.edgeLength - 0.01);
 
         Spannoid.SpannoidUpdater.ContractEdgeResult contraction = updater.contractEdge(tree, labeled);
+        bpp += contraction.bpp;
 
-        // TODO: Add correct acceptance probs!
-        if (Utils.generator.nextDouble() <= 0.5) {
+        // backproposal of choosing the new node for expansion
+        List<Vertex> innerBlackNodes = tree.getInnerLabelledVertices();
+        Set<Vertex> neighbourhood = tree.getNeighbourhood(contraction.up);
+        bpp += Math.log(2);
+        bpp += -Math.log((neighbourhood.size() - 1) * innerBlackNodes.size());
+
+        // backproposal of placing the root
+        int sizeOfUp = contraction.up.owner.vertex.size() - 2;
+        int sizeOfDown = contraction.down.owner.vertex.size() - 2;
+        bpp += -Math.log(1 + sizeOfDown + sizeOfUp);
+
+        double newLogLike = tree.getLogLike();
+
+        if (Math.log(Utils.generator.nextDouble()) <= bpp + (newLogLike - oldLogLike)) {
             return true;
         } else {
             updater.revertEdgeContraction(contraction);
@@ -64,15 +91,30 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
     private boolean sampleExpand() {
         updater.checkSpannoid(tree);
 
+        double oldLogLike = tree.getLogLike();
+
         // TODO: Take valency restriction into account!
         Vertex[] nodes = updater.getRandomNodesForExpansion(tree);
         if (nodes == null)
             return false;
 
-        Spannoid.SpannoidUpdater.ExpandEdgeResult expansion = updater.expandEdge(tree, nodes[0], nodes[1]);
+        double bpp = 0;
 
-        // TODO: Add correct acceptance probs!
-        if (Utils.generator.nextDouble() <= 0.5) {
+        // proposal of choosing this node and edge
+        List<Vertex> innerBlackNodes = tree.getInnerLabelledVertices();
+        Set<Vertex> neighbourhood = tree.getNeighbourhood(nodes[0]);
+        bpp -= Math.log(2);
+        bpp -= -Math.log((neighbourhood.size() - 1) * innerBlackNodes.size());
+
+        Spannoid.SpannoidUpdater.ExpandEdgeResult expansion = updater.expandEdge(tree, nodes[0], nodes[1]);
+        bpp += expansion.bpp;
+
+        // backproposal of choosing the new edge for contraction
+        bpp += Math.log(tree.getLabelledVerticesForContraction().size());
+
+        double newLogLike = tree.getLogLike();
+
+        if (Math.log(Utils.generator.nextDouble()) <= bpp + (newLogLike - oldLogLike)) {
             return true;
         } else {
             updater.revertEdgeExpansion(expansion);

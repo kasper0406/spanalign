@@ -52,7 +52,6 @@ public class Spannoid extends Stoppable implements ITree {
     private Map<Integer, Set<Vertex>> componentConnections = new HashMap<Integer, Set<Vertex>>();
     private Map<Vertex, Integer> labeledVertexIds = new HashMap<Vertex, Integer>();
 
-
     private double heat = 1.0d;
 
     public Spannoid(int componentSize, BonphyStrategy optimizationStrategy,
@@ -628,7 +627,11 @@ public class Spannoid extends Stoppable implements ITree {
         return null;
     }
 
-    public List<Vertex> getInnerLabelledVertices(){
+    public Set<Vertex> getLabelledVertices() {
+        return labeledVertexIds.keySet();
+    }
+
+    public List<Vertex> getInnerLabelledVertices() {
         List<Vertex> result = new ArrayList<Vertex>();
 
         for (int i = 0; i < n; i++) {
@@ -639,6 +642,21 @@ public class Spannoid extends Stoppable implements ITree {
         }
 
         return result;
+    }
+
+    public List<Vertex> getLabelledVerticesForContraction() {
+        List<Vertex> nodes = new ArrayList<Vertex>();
+        for (Vertex v : getLabelledVertices()) {
+            if (v.owner.vertex.size() > 3) {
+                nodes.add(v);
+            }
+        }
+        return nodes;
+    }
+
+    public Set<Vertex> getNeighbourhood(Vertex vertex) {
+        int vertexId = labeledVertexIds.get(vertex);
+        return componentConnections.get(vertexId);
     }
 
     public static void main(String[] args) throws Exception {
@@ -1188,9 +1206,9 @@ public class Spannoid extends Stoppable implements ITree {
         }
 
         private double[] splitEdgeLength(double edgeSum) {
-            final double e1 = Utils.generator.nextDouble() * edgeSum;
-            final double e2 = edgeSum - e1;
-            return new double[] { e1, e2 };
+            final double e1 = Utils.generator.nextDouble() * (edgeSum - 0.01);
+            final double e2 = edgeSum - 0.01 - e1;
+            return new double[] { 0.01 + e1, 0.01 + e2 };
         }
 
         private void makeFakeAlignment(Vertex vertex) {
@@ -1353,20 +1371,22 @@ public class Spannoid extends Stoppable implements ITree {
             v.hmm3TransMatrix = v.topologyBackup.hmm3TransMatrix;
         }
 
-        public static class ContractEdgeResult {
+        public static class ContractEdgeResult extends MCMCResult {
             public Spannoid spannoid;
-            public Vertex parentTree;
-            public Vertex childTree;
+            public Vertex up;
+            public Vertex down;
             public Vertex contractedVertex;
             public Vertex steiner;
+            public boolean specialCase;
 
             public ContractEdgeResult(Spannoid spannoid, Vertex contractedVertex, Vertex steiner,
-                                      Vertex parentTree, Vertex childTree) {
+                                      Vertex parentTree, Vertex childTree, boolean specialCase) {
                 this.spannoid = spannoid;
-                this.parentTree = parentTree;
-                this.childTree = childTree;
+                this.up = parentTree;
+                this.down = childTree;
                 this.contractedVertex = contractedVertex;
                 this.steiner = steiner;
+                this.specialCase = specialCase;
             }
         }
 
@@ -1396,13 +1416,25 @@ public class Spannoid extends Stoppable implements ITree {
             Vertex steiner = originalSteiner;
             final Tree originalComponent = labeled.owner;
 
+            double bpp = 0;
+
             // Backup the entire tree
             backupTree(originalComponent.root);
 
             // SPECIAL CASE: Steiner is the fake root vertex!
-            if (steiner.parent == null) {
+            final boolean specialCase = (steiner.parent == null);
+
+            if (specialCase) {
                 Vertex brother = labeled.brother();
-                brother.edgeLength = labeled.edgeLength + brother.edgeLength;
+
+                brother.fullWin();
+                brother.left.fullWin();
+                brother.right.fullWin();
+                bpp += brother.hmm3BackProp();
+                steiner.fullWin();
+                steiner.left.fullWin();
+                steiner.right.fullWin();
+                bpp += steiner.hmm3BackProp();
 
                 // Swap alignment of labeled and fake root.
                 swapAlignment(labeled, steiner, Direction.LEFT);
@@ -1417,13 +1449,27 @@ public class Spannoid extends Stoppable implements ITree {
                 labeled.checkPointers();
                 brother.checkPointers();
 
-                Vertex newRoot = rerootComponent(brother.left); // brother.left is okay, since otherwise component would be non-contractible!
+                // choose root for up component
+                List<Vertex> choices = getSubtreeNodes(brother.left);
+                Vertex newRootPosition = choices.get(Utils.generator.nextInt(choices.size()));
+                bpp -= -Math.log(choices.size());
+                // choose how to split the edge
+                bpp -= -Math.log(newRootPosition.edgeLength - 0.01); // actual choice is done in rerootComponent
+
+                Vertex newRoot = rerootComponent(newRootPosition); // brother.left is okay, since otherwise component would be non-contractible!
                 labeled.owner.root = newRoot;
                 labeled.owner.vertex.add(newRoot);
 
                 brother.edgeChangeUpdate();
 
                 steiner = labeled.parent;
+            } else {
+                steiner.parent.fullWin();
+                steiner.fullWin();
+                steiner.left.fullWin();
+                steiner.right.fullWin();
+                bpp += steiner.hmm2BackProp();
+                bpp += steiner.hmm3BackProp();
             }
 
             final double R = originalComponent.getR(),
@@ -1455,7 +1501,7 @@ public class Spannoid extends Stoppable implements ITree {
 
             // Handle down component
             Vertex brother = labeled.brother();
-            final Vertex rootAt = getRandomNode(brother, down);
+
             copyVertex(down, labeled);
 
             // Make (non-trivial and fast) alignment of down and brother
@@ -1483,6 +1529,14 @@ public class Spannoid extends Stoppable implements ITree {
             brother.checkPointers();
 
             dfsMoveVertex(down, null, downComponent);
+
+            // choose root for down component
+            List<Vertex> choices = getSubtreeNodes(brother);
+            choices.add(down);
+            final Vertex rootAt = choices.get(Utils.generator.nextInt(choices.size()));
+            bpp -= -Math.log(choices.size());
+            // choose how to split the edge
+            bpp -= -Math.log(rootAt.edgeLength - 0.01); // actual choice is done in rerootComponent
 
             Vertex newRoot = rerootComponent(rootAt);
             downComponent.vertex.add(newRoot);
@@ -1518,7 +1572,10 @@ public class Spannoid extends Stoppable implements ITree {
 
             checkSpannoid(spannoid);
 
-            return new ContractEdgeResult(spannoid, labeled, originalSteiner, up, down);
+            ContractEdgeResult result = new ContractEdgeResult(spannoid, labeled, originalSteiner, up, down, specialCase);
+            result.bpp = bpp;
+
+            return result;
         }
 
         public void revertEdgeContraction(ContractEdgeResult contraction)
@@ -1550,37 +1607,27 @@ public class Spannoid extends Stoppable implements ITree {
             // Update spannoid information
             Spannoid spannoid = contraction.spannoid;
             final int before = spannoid.components.size();
-            spannoid.components.remove(contraction.parentTree.owner);
-            spannoid.components.remove(contraction.childTree.owner);
+            spannoid.components.remove(contraction.up.owner);
+            spannoid.components.remove(contraction.down.owner);
             spannoid.components.add(originalComponent);
             if (spannoid.components.size() != before - 1)
                 throw new RuntimeException("Components not added/removed correctly!");
 
-            int id = spannoid.labeledVertexIds.get(contraction.parentTree);
+            int id = spannoid.labeledVertexIds.get(contraction.up);
             Set<Vertex> connections = spannoid.componentConnections.get(id);
-            connections.remove(contraction.parentTree);
-            connections.remove(contraction.childTree);
+            connections.remove(contraction.up);
+            connections.remove(contraction.down);
             connections.add(contraction.contractedVertex);
 
-            spannoid.labeledVertexIds.remove(contraction.parentTree);
-            spannoid.labeledVertexIds.remove(contraction.childTree);
+            spannoid.labeledVertexIds.remove(contraction.up);
+            spannoid.labeledVertexIds.remove(contraction.down);
             spannoid.labeledVertexIds.put(contraction.contractedVertex, id);
         }
 
-        /**
-         *
-         * @param subtree The subtree to traverse for nodes.
-         * @param labeledRoot The labled root object when doing contracting.
-         *                    (This is needed since this is also a possible candidate for placement of the fake root).
-         * @return
-         */
-        private Vertex getRandomNode(Vertex subtree, Vertex labeledRoot) {
-            List<Vertex> leaves = new ArrayList<Vertex>();
-            leaves.add(labeledRoot);
-            collectNodes(subtree, leaves);
-
-            int k = Utils.generator.nextInt(leaves.size());
-            return leaves.get(k);
+        private List<Vertex> getSubtreeNodes(Vertex root) {
+            List<Vertex> nodes = new ArrayList<Vertex>();
+            collectNodes(root, nodes);
+            return nodes;
         }
 
         private void collectNodes(Vertex v, List<Vertex> nodes) {
@@ -1623,7 +1670,7 @@ public class Spannoid extends Stoppable implements ITree {
             v.hmm2AlignWithRecalc();
         }
 
-        public class ExpandEdgeResult {
+        public class ExpandEdgeResult extends MCMCResult {
             Spannoid spannoid;
             Vertex up;
             Vertex down;
@@ -1637,15 +1684,70 @@ public class Spannoid extends Stoppable implements ITree {
             }
         }
 
-        public ExpandEdgeResult expandEdge(Spannoid spannoid, final Vertex up, final Vertex down)
+        public ExpandEdgeResult expandEdge(Spannoid spannoid, Vertex up, Vertex down)
         {
+            double bpp = 0;
+
+            int sizeOfUp = up.owner.vertex.size() - 2;
+            int sizeOfDown = down.owner.vertex.size() - 2;
+
+            Vertex upRoot = up.owner.root;
+            Vertex downRoot = down.owner.root;
+
+            int choice = Utils.weightedChoose(new int[] {sizeOfUp, sizeOfDown, 1});
+
+            boolean removeUpRoot = false, removeDownRoot = false;
+
+            switch (choice) {
+                case 0:
+                    removeUpRoot = false;
+                    removeDownRoot = true;
+
+                    bpp -= Math.log(sizeOfUp);
+                    break;
+                case 1:
+                    removeUpRoot = true;
+                    removeDownRoot = false;
+
+                    Vertex temp = up;
+                    up = down;
+                    down = temp;
+
+                    bpp -= Math.log(sizeOfDown);
+                    break;
+                case 2:
+                    removeUpRoot = true;
+                    removeDownRoot = true;
+
+                    // TODO: put root onto expanded edge
+
+                    // bpp -= Math.log(1);
+            }
+            bpp -= -Math.log(sizeOfUp + sizeOfDown + 1);
+
+            if (removeUpRoot) {
+                // backproposal for placing the up root
+                bpp += -Math.log(sizeOfUp);
+                bpp += -Math.log((upRoot.left.edgeLength - 0.01)
+                        +(upRoot.right.edgeLength - 0.01));
+            }
+            if (removeDownRoot) {
+                // backproposal for placing the down root
+                bpp += -Math.log(sizeOfDown);
+                bpp += -Math.log((downRoot.left.edgeLength - 0.01)
+                        +(downRoot.right.edgeLength - 0.01));
+            }
+
             backupTree(up.owner.root);
             backupTree(down.owner.root);
 
             final double R = spannoid.getR(), lambda = spannoid.getLambda(), mu = spannoid.getMu();
             Tree newComponent = createEmptyComponent(spannoid.getSubstitutionModel(), R, lambda, mu);
 
-            final double labeledEdgeLength = -Math.log(Utils.generator.nextDouble());
+            // choose edge length
+            double labeledEdgeLength = 0.01 - Math.log(Utils.generator.nextDouble());
+            bpp -= -(labeledEdgeLength - 0.01);
+
             Vertex labeled = new Vertex(newComponent, labeledEdgeLength);
             copyVertex(labeled, up);
 
@@ -1746,8 +1848,9 @@ public class Spannoid extends Stoppable implements ITree {
                 otherSubtree.calcAllUp();
             }
 
-            steiner.hmm3AlignWithRecalc();
-            steiner.hmm2AlignWithRecalc();
+            // proposals for new alignment
+            bpp += steiner.hmm3AlignWithRecalc();
+            bpp += steiner.hmm2AlignWithRecalc();
 
             dfsMoveVertex(up.owner.root, null, newComponent);
             newComponent.root = up.owner.root;
@@ -1779,7 +1882,10 @@ public class Spannoid extends Stoppable implements ITree {
 
             checkSpannoid(spannoid);
 
-            return new ExpandEdgeResult(spannoid, up, down, labeled);
+            ExpandEdgeResult result = new ExpandEdgeResult(spannoid, up, down, labeled);
+            result.bpp = bpp;
+
+            return result;
         }
 
         public void revertEdgeExpansion(ExpandEdgeResult expansion) {
@@ -1950,19 +2056,6 @@ public class Spannoid extends Stoppable implements ITree {
             builder.append("}");
 
             return builder.toString();
-        }
-
-        public Vertex getLabeledNodeForContractions(Spannoid spannoid) {
-            int iterations = 0;
-            Vertex node = null;
-            do {
-                node = getRandomBlack(spannoid);
-            } while (node.owner.vertex.size() <= 3 && ++iterations < 10);
-
-            if (node.owner.vertex.size() <= 3)
-                return null;
-            else
-                return node;
         }
 
         public Vertex getRandomInnerBlack(Spannoid spannoid){
