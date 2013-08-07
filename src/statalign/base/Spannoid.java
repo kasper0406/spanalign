@@ -940,7 +940,6 @@ public class Spannoid extends Stoppable implements ITree {
 
         private void copyAlignmentColumn(Vertex copy, Vertex original) {
             copy.length = original.length;
-            copy.seq = original.seq;
 
             AlignColumn cur = original.first;
 
@@ -970,6 +969,7 @@ public class Spannoid extends Stoppable implements ITree {
 
         private void copyVertex(Vertex copy, Vertex original) {
             copy.name = original.name;
+            copy.seq = original.seq;
             // copy.owner = original.owner;
 
             copyAlignmentColumn(copy, original);
@@ -1084,69 +1084,84 @@ public class Spannoid extends Stoppable implements ITree {
 
                 oldParent.left = null;
                 oldParent.right = null;
-            } else {
-                Vertex leftSubtree = where.parent;
 
-                // copyAlignmentColumn(newRoot, leftSubtree);
+                copyAlignmentColumn(newRoot, newRoot.right);
+
+                AlignColumn oldParentAC = oldParent.first;
+                for (AlignColumn ac = newRoot.first; ac != null; ac = ac.next) {
+                    ac.right = oldParentAC;
+                    ac.orphan = true;
+                    oldParentAC = oldParentAC.next;
+                }
+                newRoot.last.orphan = false;
+
+                AlignColumn newRootAC = newRoot.first;
+                for (AlignColumn ac = oldParent.first; ac != null; ac = ac.next) {
+                    ac.parent = newRootAC;
+                    ac.left = null;
+                    ac.right = null;
+                    ac.orphan = false;
+                    newRootAC = newRootAC.next;
+                }
+
+                for (AlignColumn ac = newRoot.left.first; ac != null; ac = ac.next)
+                    ac.parent = ac.parent.parent;
+            } else {
+                final Vertex brotherSubtree = where.parent;
+
+                copyAlignmentColumn(newRoot, brotherSubtree);
 
                 // Swap the alignment and pointers from the root to the 'where' vertex.
                 swapPath(oldParent, directionsArray);
 
-                //if (directionsArray[directionsArray.length - 1] == Direction.LEFT) {
-                //    newRoot.right = leftSubtree;
-                //    newRoot.left = where;
-                //} else {
-                    newRoot.left = leftSubtree;
+                if (directionsArray[directionsArray.length - 1] == Direction.LEFT) {
+                    newRoot.right = brotherSubtree;
+                    newRoot.left = where;
+                } else {
+                    newRoot.left = brotherSubtree;
                     newRoot.right = where;
-                //}
+                }
 
-                leftSubtree.parent = newRoot;
+                brotherSubtree.parent = newRoot;
                 where.parent = newRoot;
 
-                /*
-                AlignColumn leftSubtreeAC = leftSubtree.first;
+                AlignColumn brotherSubtreeAC = brotherSubtree.first;
                 for (AlignColumn ac = newRoot.first; ac != null; ac = ac.next) {
                     ac.parent = null;
                     ac.orphan = true;
-                    leftSubtreeAC.orphan = false;
+                    // brotherSubtreeAC.orphan = false;
 
                     if (directionsArray[directionsArray.length - 1] == Direction.LEFT)
-                        ac.right = leftSubtreeAC;
+                        ac.right = brotherSubtreeAC;
                     else
-                        ac.left = leftSubtreeAC;
+                        ac.left = brotherSubtreeAC;
 
-                    leftSubtreeAC = leftSubtreeAC.next;
+                    brotherSubtreeAC = brotherSubtreeAC.next;
                 }
                 newRoot.last.orphan = false;
 
                 AlignColumn rootAC = newRoot.first;
-                for (AlignColumn ac = leftSubtree.first; ac != null; ac = ac.next) {
+                for (AlignColumn ac = brotherSubtree.first; ac != null; ac = ac.next) {
                     ac.parent = rootAC;
+                    ac.orphan = false;
                     rootAC = rootAC.next;
                 }
 
                 for (AlignColumn ac = where.first; ac != null; ac = ac.next)
                     ac.parent = ac.parent.parent;
-
-                newRoot.edgeChangeUpdate();
-                newRoot.left.edgeChangeUpdate();
-                newRoot.right.edgeChangeUpdate();
-
-                newRoot.left.calcOrphan();
-                newRoot.right.calcOrphan();
-                newRoot.left.calcAllUp();
-                */
             }
 
-            oldParent.left = null; // TODO: Check if it's right!
+            oldParent.left = null;
             for (AlignColumn ac = oldParent.first; ac != null; ac = ac.next)
                 ac.left = null;
 
-            drawNewAlignment(newRoot);
+            newRoot.edgeChangeUpdate();
+            newRoot.left.edgeChangeUpdate();
+            newRoot.right.edgeChangeUpdate();
 
-            // TODO:
-            // Realign newRoot by copying left child alignment into newRoot and
-            // use existing alignment between left and right child to align newRoot and right.
+            newRoot.left.calcOrphan();
+            newRoot.right.calcOrphan();
+            newRoot.left.calcAllUp();
 
             newRoot.left.checkPointers();
             newRoot.right.checkPointers();
@@ -1417,42 +1432,26 @@ public class Spannoid extends Stoppable implements ITree {
             final Vertex rootAt = getRandomNode(brother, down);
             copyVertex(down, labeled);
 
-            if (rootAt != down) {
-                updateAlignColumnReferences(down, up);
+            // Make (non-trivial and fast) alignment of down and brother
+            updateAlignColumnReferences(down, up);
 
-                down.parent = steiner;
-                steiner.parent = null;
-                for (AlignColumn ac = steiner.first; ac != null; ac = ac.next)
-                    ac.parent = null;
+            down.parent = steiner;
+            steiner.parent = null;
+            for (AlignColumn ac = steiner.first; ac != null; ac = ac.next)
+                ac.parent = null;
 
-                if (steiner.left == labeled)
-                    steiner.left = down;
-                else if (steiner.right == labeled)
-                    steiner.right = down;
-                else
-                    throw new RuntimeException();
+            if (steiner.left == labeled)
+                steiner.left = down;
+            else if (steiner.right == labeled)
+                steiner.right = down;
+            else
+                throw new RuntimeException();
 
-                down.checkPointers();
-                steiner.checkPointers();
+            down.checkPointers();
+            steiner.checkPointers();
 
-                swapAlignmentWithoutRecalc(down, steiner, Direction.LEFT);
-                alignAlignmentWithTopologyUpdate(brother, steiner, down);
-            } else {
-                for (AlignColumn ac = down.first; ac != null; ac = ac.next)
-                    ac.parent = null;
-
-                brother.parent = down;
-                down.left = brother;
-                down.parent = null;
-
-                for (AlignColumn ac = brother.first; ac != brother.last; ac = ac.next) {
-                    ac.orphan = true;
-                    ac.parent = down.last;
-                }
-                brother.last.orphan = false;
-                brother.last.parent = down.last;
-                down.last.left = brother.last;
-            }
+            swapAlignmentWithoutRecalc(down, steiner, Direction.LEFT);
+            alignAlignmentWithTopologyUpdate(brother, steiner, down);
 
             down.checkPointers();
             brother.checkPointers();
@@ -1462,19 +1461,6 @@ public class Spannoid extends Stoppable implements ITree {
             Vertex newRoot = rerootComponent(rootAt);
             downComponent.vertex.add(newRoot);
             downComponent.root = newRoot;
-
-            down.checkPointers();
-
-            /*
-            if (rootAt != down) {
-                down.parent.edgeChangeUpdate();
-                down.edgeChangeUpdate();
-                down.parent.fullWin();
-                down.fullWin();
-
-                down.hmm2AlignWithRecalc();
-                down.calcAllUp();
-            } */
 
             down.checkPointers();
             down.parent.checkPointers();
