@@ -1756,41 +1756,39 @@ public class Spannoid extends Stoppable implements ITree {
             Vertex steiner = new Vertex(newComponent, up.edgeLength);
 
             /*
-             * Construct connection to parent component (up)
+             * Create connection to labeled node (left)
              */
             if (!rootAtExpandedEdge) {
                 // Keep the root in up-component.
                 steiner.parent = up.parent;
-                if (up.parent.left == up)
+                if (up.parent.left == up) {
                     up.parent.left = steiner;
-                else if (up.parent.right == up)
+                }
+                else if (up.parent.right == up) {
                     up.parent.right = steiner;
-                else
+                }
+                else {
                     throw new RuntimeException();
+                }
                 dummyAlignToParent(steiner);
-            } else {
-                // Root the up-component just above up vertex.
-                // Get rid of the fake root.
-                getRidOfRooting(up, steiner);
-            }
 
-            /*
-             * Create connection to labeled node (left)
-             */
-            if (!rootAtExpandedEdge) {
+                newComponent.root = up.owner.root;
+
                 steiner.left = labeled;
                 labeled.parent = steiner;
                 for (AlignColumn ac = labeled.first; ac != labeled.last; ac = ac.next) {
                     ac.parent = steiner.last;
                     ac.orphan = true;
 
-                    if (ac.left != null || ac.right != null)
+                    if (ac.left != null || ac.right != null) {
                         throw new RuntimeException();
+                    }
                 }
                 labeled.last.parent = steiner.last;
                 labeled.last.orphan = false;
-                if (labeled.last.left != null || labeled.last.right != null)
+                if (labeled.last.left != null || labeled.last.right != null) {
                     throw new RuntimeException();
+                }
                 steiner.last.left = labeled.last;
                 labeled.fullWin();
                 labeled.parent.fullWin();
@@ -1801,77 +1799,43 @@ public class Spannoid extends Stoppable implements ITree {
                 steiner.checkPointers();
             } else {
                 // Put root between steiner and labeled.
-                Vertex newRoot = new Vertex(where.owner, 1);
+                Vertex newRoot = new Vertex(newComponent, 0);
+                newComponent.root = newRoot;
+
+                newRoot.left = labeled;
+                labeled.parent = newRoot;
+                newRoot.right = steiner;
+                steiner.parent = newRoot;
+
+                // TODO: proposal
+                double[] newEdgeLengths = splitEdgeLength(labeledEdgeLength);
+                labeled.edgeLength = newEdgeLengths[0];
+                steiner.edgeLength = newEdgeLengths[1];
+                labeled.edgeChangeUpdate();
+                steiner.edgeChangeUpdate();
+
+                makeFakeAlignment(steiner);
+                getRidOfRooting(up, steiner, Direction.LEFT);
             }
 
-            /*
-             * Create connection to child component (down)
-             */
-            /*
-            Vertex otherSubtree = null;
-            Vertex fakeRoot = down.owner.root;
-            final Direction direction = getDirectionFromRoot(down);
+            getRidOfRooting(down, steiner, Direction.RIGHT);
 
-            if (direction.getChild(fakeRoot) != down) { // Check if fake root is not just below 'down'-vertex.
-                switch (direction) {
-                    case LEFT:
-                        otherSubtree = fakeRoot.right;
-                        fakeRoot.right = null;
-                        for (AlignColumn ac = fakeRoot.first; ac != null; ac = ac.next)
-                            ac.right = null;
-                        break;
-
-                    case RIGHT:
-                        otherSubtree = fakeRoot.left;
-                        fakeRoot.left = null;
-                        for (AlignColumn ac = fakeRoot.first; ac != null; ac = ac.next)
-                            ac.left = null;
-                        break;
-
-                    default: throw new RuntimeException();
-                }
-
-                rerootComponent(down);
-            }
-
-            Vertex brother = down.brother();
-            steiner.right = brother;
-            brother.parent = steiner;
-            for (AlignColumn ac = brother.first; ac != brother.last; ac = ac.next) {
-                ac.parent = steiner.last;
-                ac.orphan = true;
-            }
-            brother.last.parent = steiner.last;
-            brother.last.orphan = false;
-            steiner.last.right = brother.last;
-            brother.edgeLength = down.edgeLength;
-            brother.fullWin();
-            brother.parent.fullWin();
-            brother.edgeChangeUpdate();
-            brother.parent.edgeChangeUpdate();
-
-            // TODO: Handle special cases
-            if (direction.getChild(fakeRoot) != down) { // Check if fake root is not just below 'down'-vertex.
-                otherSubtree.parent = fakeRoot.parent;
-                if (fakeRoot.parent.left == fakeRoot)
-                    fakeRoot.parent.left = otherSubtree;
-                else if (fakeRoot.parent.right == fakeRoot)
-                    fakeRoot.parent.right = otherSubtree;
-                else
-                    throw new RuntimeException();
-                alignAlignment(otherSubtree, fakeRoot, fakeRoot.parent);
-                otherSubtree.calcAllUp();
-            } */
-
-            getRidOfRooting(down, steiner);
+            steiner.parent.fullWin();
+            steiner.fullWin();
+            steiner.left.fullWin();
+            steiner.right.fullWin();
 
             // proposals for new alignment
             bpp += steiner.hmm3AlignWithRecalc();
-            bpp += steiner.hmm2AlignWithRecalc();
+            if (!rootAtExpandedEdge) {
+                bpp += steiner.hmm2AlignWithRecalc();
+            } else {
+                // TODO: proposal
+                drawNewAlignment(newComponent.root);
+            }
 
-            dfsMoveVertex(up.owner.root, null, newComponent);
-            newComponent.root = up.owner.root;
 
+            dfsMoveVertex(newComponent.root, null, newComponent);
             changeOwnerVertices(newComponent, newComponent.root);
 
             newComponent.root.calcFelsRecursively();
@@ -1946,11 +1910,15 @@ public class Spannoid extends Stoppable implements ITree {
             }
         }
 
-        private void getRidOfRooting(Vertex leafOfTree, Vertex whereToPlace) {
+        private void getRidOfRooting(Vertex leafOfTree, Vertex whereToPlace, Direction direction) {
             rerootAtLeaf(leafOfTree);
 
             Vertex brother = leafOfTree.brother();
-            whereToPlace.right = brother;
+            if (direction == Direction.LEFT) {
+                whereToPlace.left = brother;
+            } else {
+                whereToPlace.right = brother;
+            }
             brother.parent = whereToPlace;
             for (AlignColumn ac = brother.first; ac != brother.last; ac = ac.next) {
                 ac.parent = whereToPlace.last;
@@ -1958,7 +1926,11 @@ public class Spannoid extends Stoppable implements ITree {
             }
             brother.last.parent = whereToPlace.last;
             brother.last.orphan = false;
-            whereToPlace.last.right = brother.last;
+            if (direction == Direction.LEFT) {
+                whereToPlace.last.left = brother.last;
+            } else {
+                whereToPlace.last.right = brother.last;
+            }
             brother.edgeLength = leafOfTree.edgeLength;
             brother.fullWin();
             brother.parent.fullWin();
