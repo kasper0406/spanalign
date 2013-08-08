@@ -73,7 +73,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         bpp += Math.log(2);
         bpp += -Math.log((neighbourhood.size() - 1) * innerBlackNodes.size());
 
-        // backproposal of placing the root
+        // backproposal of placing the root in this component
         int sizeOfUp = contraction.up.owner.vertex.size() - 2;
         int sizeOfDown = contraction.down.owner.vertex.size() - 2;
         bpp += -Math.log(1 + sizeOfDown + sizeOfUp);

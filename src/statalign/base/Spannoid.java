@@ -1044,6 +1044,10 @@ public class Spannoid extends Stoppable implements ITree {
          * @param where Where to place the new fake root.
          */
         private Vertex rerootComponent(Vertex where) {
+            return rerootComponent(where, null);
+        }
+
+        private Vertex rerootComponent(Vertex where, MuDouble p) {
             final double edgeSum = where.edgeLength;
 
             List<Direction> directions = new LinkedList<Direction>();
@@ -1061,7 +1065,6 @@ public class Spannoid extends Stoppable implements ITree {
             Collections.reverse(directions); // Get directions ordered from (current) parent to child.
             Direction[] directionsArray = directions.toArray(new Direction[0]);
 
-                    // Commented out code is for choosing newRoot with identity alignment. (Leads to reversibility problem).
             Vertex newRoot = new Vertex(where.owner, 1);
             if (where == oldParent) {
                 newRoot.left = oldParent.left;
@@ -1073,89 +1076,38 @@ public class Spannoid extends Stoppable implements ITree {
 
                 oldParent.left = null;
                 oldParent.right = null;
-
-                /*
-                copyAlignmentColumn(newRoot, newRoot.right);
-
-                AlignColumn oldParentAC = oldParent.first;
-                for (AlignColumn ac = newRoot.first; ac != null; ac = ac.next) {
-                    ac.right = oldParentAC;
-                    ac.orphan = true;
-                    oldParentAC = oldParentAC.next;
-                }
-                newRoot.last.orphan = false;
-
-                AlignColumn newRootAC = newRoot.first;
-                for (AlignColumn ac = oldParent.first; ac != null; ac = ac.next) {
-                    ac.parent = newRootAC;
-                    ac.left = null;
-                    ac.right = null;
-                    ac.orphan = false;
-                    newRootAC = newRootAC.next;
-                }
-
-                for (AlignColumn ac = newRoot.left.first; ac != null; ac = ac.next)
-                    ac.parent = ac.parent.parent;
-                    */
             } else {
                 final Vertex brotherSubtree = where.parent;
-
-                //copyAlignmentColumn(newRoot, brotherSubtree);
 
                 // Swap the alignment and pointers from the root to the 'where' vertex.
                 swapPath(oldParent, directionsArray);
 
-                /*
-                if (directionsArray[directionsArray.length - 1] == Direction.LEFT) {
-                    newRoot.right = brotherSubtree;
-                    newRoot.left = where;
-                    newRoot.right.edgeLength = 0;
-                } else { */
                 newRoot.left = brotherSubtree;
                 newRoot.right = where;
-                //    newRoot.left.edgeLength = 0;
-                //}
 
                 brotherSubtree.parent = newRoot;
                 where.parent = newRoot;
-
-                /*
-                AlignColumn brotherSubtreeAC = brotherSubtree.first;
-                for (AlignColumn ac = newRoot.first; ac != null; ac = ac.next) {
-                    ac.parent = null;
-                    ac.orphan = true;
-                    // brotherSubtreeAC.orphan = false;
-
-                    if (directionsArray[directionsArray.length - 1] == Direction.LEFT)
-                        ac.right = brotherSubtreeAC;
-                    else
-                        ac.left = brotherSubtreeAC;
-
-                    brotherSubtreeAC = brotherSubtreeAC.next;
-                }
-                newRoot.last.orphan = false;
-
-                AlignColumn rootAC = newRoot.first;
-                for (AlignColumn ac = brotherSubtree.first; ac != null; ac = ac.next) {
-                    ac.parent = rootAC;
-                    ac.orphan = false;
-                    rootAC = rootAC.next;
-                }
-
-                for (AlignColumn ac = where.first; ac != null; ac = ac.next)
-                    ac.parent = ac.parent.parent;
-                    */
             }
 
             oldParent.left = null;
             for (AlignColumn ac = oldParent.first; ac != null; ac = ac.next)
                 ac.left = null;
 
+            double bpp = 0;
+
             double[] edgeSplit = splitEdgeLength(edgeSum);
             newRoot.left.edgeLength = edgeSplit[0];
             newRoot.right.edgeLength = edgeSplit[1];
 
-            drawNewAlignment(newRoot);
+            // choose how to split the edge
+            bpp -= -Math.log(edgeSum - 0.01);
+
+            // choose new alignment at root
+            bpp -= -drawNewAlignment(newRoot);
+
+            if (p != null) {
+                p.value = bpp;
+            }
 
             newRoot.left.calcOrphan();
             newRoot.right.calcOrphan();
@@ -1206,7 +1158,9 @@ public class Spannoid extends Stoppable implements ITree {
             }
         }
 
-        private void drawNewAlignment(Vertex vertex) {
+        private double drawNewAlignment(Vertex vertex) {
+            double bpp;
+
             makeFakeAlignment(vertex);
             vertex.left.fullWin();
             vertex.right.fullWin();
@@ -1218,8 +1172,10 @@ public class Spannoid extends Stoppable implements ITree {
             vertex.right.edgeChangeUpdate();
             vertex.edgeChangeUpdate();
 
-            vertex.hmm3AlignWithRecalc();
+            bpp = vertex.hmm3AlignWithRecalc();
             vertex.checkPointers();
+
+            return bpp;
         }
 
         private void backupTree(Vertex v) {
@@ -1399,6 +1355,8 @@ public class Spannoid extends Stoppable implements ITree {
                 swapAlignment(labeled, steiner, Direction.LEFT);
                 // Make alignment of labeled --> brother
                 alignAlignment(brother, steiner, labeled);
+                labeled.edgeLength += brother.edgeLength - 0.01;
+                bpp += -Math.log(labeled.edgeLength - 0.01); // checked
 
                 // Forget steiner node
                 labeled.parent = null;
@@ -1412,10 +1370,10 @@ public class Spannoid extends Stoppable implements ITree {
                 List<Vertex> choices = getSubtreeNodes(brother.left);
                 Vertex newRootPosition = choices.get(Utils.generator.nextInt(choices.size()));
                 bpp -= -Math.log(choices.size());
-                // choose how to split the edge
-                bpp -= -Math.log(newRootPosition.edgeLength - 0.01); // actual choice is done in rerootComponent
 
-                Vertex newRoot = rerootComponent(newRootPosition); // brother.left is okay, since otherwise component would be non-contractible!
+                MuDouble p = new MuDouble();
+                Vertex newRoot = rerootComponent(newRootPosition, p); // brother.left is okay, since otherwise component would be non-contractible!
+                bpp -= p.value; // checked
                 labeled.owner.root = newRoot;
                 labeled.owner.vertex.add(newRoot);
 
@@ -1494,10 +1452,10 @@ public class Spannoid extends Stoppable implements ITree {
             choices.add(down);
             final Vertex rootAt = choices.get(Utils.generator.nextInt(choices.size()));
             bpp -= -Math.log(choices.size());
-            // choose how to split the edge
-            bpp -= -Math.log(rootAt.edgeLength - 0.01); // actual choice is done in rerootComponent
 
-            Vertex newRoot = rerootComponent(rootAt);
+            MuDouble p = new MuDouble();
+            Vertex newRoot = rerootComponent(rootAt, p);
+            bpp -= p.value; // checked
             downComponent.vertex.add(newRoot);
             downComponent.root = newRoot;
 
@@ -1691,12 +1649,14 @@ public class Spannoid extends Stoppable implements ITree {
                 bpp += -Math.log(sizeOfUp);
                 bpp += -Math.log((upRoot.left.edgeLength - 0.01)
                         +(upRoot.right.edgeLength - 0.01));
+                bpp += upRoot.hmm3BackProp();
             }
             if (removeDownRoot) {
                 // backproposal for placing the down root
                 bpp += -Math.log(sizeOfDown);
                 bpp += -Math.log((downRoot.left.edgeLength - 0.01)
                         +(downRoot.right.edgeLength - 0.01));
+                bpp += downRoot.hmm3BackProp();
             }
 
             backupTree(up.owner.root);
@@ -1766,7 +1726,7 @@ public class Spannoid extends Stoppable implements ITree {
                 newRoot.right = steiner;
                 steiner.parent = newRoot;
 
-                // TODO: proposal
+                bpp -= -Math.log(labeledEdgeLength - 0.01); // checked
                 double[] newEdgeLengths = splitEdgeLength(labeledEdgeLength);
                 labeled.edgeLength = newEdgeLengths[0];
                 steiner.edgeLength = newEdgeLengths[1];
@@ -1785,12 +1745,11 @@ public class Spannoid extends Stoppable implements ITree {
             steiner.right.fullWin();
 
             // proposals for new alignment
-            bpp += steiner.hmm3AlignWithRecalc();
+            bpp -= -steiner.hmm3AlignWithRecalc(); //checked
             if (!rootAtExpandedEdge) {
-                bpp += steiner.hmm2AlignWithRecalc();
+                bpp -= -steiner.hmm2AlignWithRecalc(); //checked
             } else {
-                // TODO: proposal
-                drawNewAlignment(newComponent.root);
+                bpp -= -drawNewAlignment(newComponent.root); //checked
             }
 
 
