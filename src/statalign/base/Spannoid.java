@@ -1698,6 +1698,7 @@ public class Spannoid extends Stoppable implements ITree {
 
             boolean removeUpRoot = false, removeDownRoot = false;
 
+            boolean rootAtExpandedEdge = false;
             switch (choice) {
                 case 0:
                     removeUpRoot = false;
@@ -1720,6 +1721,7 @@ public class Spannoid extends Stoppable implements ITree {
                     removeDownRoot = true;
 
                     // TODO: put root onto expanded edge
+                    rootAtExpandedEdge = true;
 
                     // bpp -= Math.log(1);
             }
@@ -1756,48 +1758,61 @@ public class Spannoid extends Stoppable implements ITree {
             /*
              * Construct connection to parent component (up)
              */
-            steiner.parent = up.parent;
-            if (up.parent.left == up)
-                up.parent.left = steiner;
-            else if (up.parent.right == up)
-                up.parent.right = steiner;
-            else
-                throw new RuntimeException();
-            dummyAlignToParent(steiner);
+            if (!rootAtExpandedEdge) {
+                // Keep the root in up-component.
+                steiner.parent = up.parent;
+                if (up.parent.left == up)
+                    up.parent.left = steiner;
+                else if (up.parent.right == up)
+                    up.parent.right = steiner;
+                else
+                    throw new RuntimeException();
+                dummyAlignToParent(steiner);
+            } else {
+                // Root the up-component just above up vertex.
+                // Get rid of the fake root.
+                getRidOfRooting(up, steiner);
+            }
 
             /*
              * Create connection to labeled node (left)
              */
-            steiner.left = labeled;
-            labeled.parent = steiner;
-            for (AlignColumn ac = labeled.first; ac != labeled.last; ac = ac.next) {
-                ac.parent = steiner.last;
-                ac.orphan = true;
+            if (!rootAtExpandedEdge) {
+                steiner.left = labeled;
+                labeled.parent = steiner;
+                for (AlignColumn ac = labeled.first; ac != labeled.last; ac = ac.next) {
+                    ac.parent = steiner.last;
+                    ac.orphan = true;
 
-                if (ac.left != null || ac.right != null)
+                    if (ac.left != null || ac.right != null)
+                        throw new RuntimeException();
+                }
+                labeled.last.parent = steiner.last;
+                labeled.last.orphan = false;
+                if (labeled.last.left != null || labeled.last.right != null)
                     throw new RuntimeException();
-            }
-            labeled.last.parent = steiner.last;
-            labeled.last.orphan = false;
-            if (labeled.last.left != null || labeled.last.right != null)
-                throw new RuntimeException();
-            steiner.last.left = labeled.last;
-            labeled.fullWin();
-            labeled.parent.fullWin();
-            labeled.edgeChangeUpdate();
-            labeled.parent.edgeChangeUpdate();
+                steiner.last.left = labeled.last;
+                labeled.fullWin();
+                labeled.parent.fullWin();
+                labeled.edgeChangeUpdate();
+                labeled.parent.edgeChangeUpdate();
 
-            labeled.checkPointers();
-            steiner.checkPointers();
+                labeled.checkPointers();
+                steiner.checkPointers();
+            } else {
+                // Put root between steiner and labeled.
+                Vertex newRoot = new Vertex(where.owner, 1);
+            }
 
             /*
              * Create connection to child component (down)
              */
+            /*
             Vertex otherSubtree = null;
             Vertex fakeRoot = down.owner.root;
             final Direction direction = getDirectionFromRoot(down);
 
-            if (direction.getChild(fakeRoot) != down) { // Check if fake root is just below 'down'-vertex.
+            if (direction.getChild(fakeRoot) != down) { // Check if fake root is not just below 'down'-vertex.
                 switch (direction) {
                     case LEFT:
                         otherSubtree = fakeRoot.right;
@@ -1836,7 +1851,7 @@ public class Spannoid extends Stoppable implements ITree {
             brother.parent.edgeChangeUpdate();
 
             // TODO: Handle special cases
-            if (direction.getChild(fakeRoot) != down) { // Check if fake root is just below 'down'-vertex.
+            if (direction.getChild(fakeRoot) != down) { // Check if fake root is not just below 'down'-vertex.
                 otherSubtree.parent = fakeRoot.parent;
                 if (fakeRoot.parent.left == fakeRoot)
                     fakeRoot.parent.left = otherSubtree;
@@ -1846,7 +1861,9 @@ public class Spannoid extends Stoppable implements ITree {
                     throw new RuntimeException();
                 alignAlignment(otherSubtree, fakeRoot, fakeRoot.parent);
                 otherSubtree.calcAllUp();
-            }
+            } */
+
+            getRidOfRooting(down, steiner);
 
             // proposals for new alignment
             bpp += steiner.hmm3AlignWithRecalc();
@@ -1886,6 +1903,67 @@ public class Spannoid extends Stoppable implements ITree {
             result.bpp = bpp;
 
             return result;
+        }
+
+        private void rerootAtLeaf(Vertex vertex) {
+            Vertex otherSubtree = null;
+            Vertex fakeRoot = vertex.owner.root;
+            final Direction direction = getDirectionFromRoot(vertex);
+
+            if (direction.getChild(fakeRoot) != vertex) { // If root is not in correct position, do re-rooting
+                // Save the old subtree s.t. references can be used for swapping.
+                switch (direction) {
+                    case LEFT:
+                        otherSubtree = fakeRoot.right;
+                        fakeRoot.right = null;
+                        for (AlignColumn ac = fakeRoot.first; ac != null; ac = ac.next)
+                            ac.right = null;
+                        break;
+
+                    case RIGHT:
+                        otherSubtree = fakeRoot.left;
+                        fakeRoot.left = null;
+                        for (AlignColumn ac = fakeRoot.first; ac != null; ac = ac.next)
+                            ac.left = null;
+                        break;
+
+                    default: throw new RuntimeException();
+                }
+
+                // Reroot at hte leaf
+                rerootComponent(vertex);
+
+                // Reinsert otherSubtree into the place where fakeRoot was located before.
+                otherSubtree.parent = fakeRoot.parent;
+                if (fakeRoot.parent.left == fakeRoot)
+                    fakeRoot.parent.left = otherSubtree;
+                else if (fakeRoot.parent.right == fakeRoot)
+                    fakeRoot.parent.right = otherSubtree;
+                else
+                    throw new RuntimeException();
+                alignAlignment(otherSubtree, fakeRoot, fakeRoot.parent);
+                otherSubtree.calcAllUp();
+            }
+        }
+
+        private void getRidOfRooting(Vertex leafOfTree, Vertex whereToPlace) {
+            rerootAtLeaf(leafOfTree);
+
+            Vertex brother = leafOfTree.brother();
+            whereToPlace.right = brother;
+            brother.parent = whereToPlace;
+            for (AlignColumn ac = brother.first; ac != brother.last; ac = ac.next) {
+                ac.parent = whereToPlace.last;
+                ac.orphan = true;
+            }
+            brother.last.parent = whereToPlace.last;
+            brother.last.orphan = false;
+            whereToPlace.last.right = brother.last;
+            brother.edgeLength = leafOfTree.edgeLength;
+            brother.fullWin();
+            brother.parent.fullWin();
+            brother.edgeChangeUpdate();
+            brother.parent.edgeChangeUpdate();
         }
 
         public void revertEdgeExpansion(ExpandEdgeResult expansion) {
