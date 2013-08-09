@@ -73,7 +73,8 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         List<Vertex> innerBlackNodes = tree.getInnerLabelledVertices();
         Set<Vertex> neighbourhood = tree.getNeighbourhood(contraction.up);
         bpp += Math.log(2);
-        bpp += -Math.log((neighbourhood.size() - 1) * innerBlackNodes.size());
+        // bpp += -Math.log((neighbourhood.size() - 1) * innerBlackNodes.size());
+        bpp += -Math.log(updater.getNodesEligibleForExpansion(tree, componentSize).size());
 
         // backproposal of placing the root in this component
         int sizeOfUp = contraction.up.owner.vertex.size() - 2;
@@ -95,11 +96,12 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
         double oldLogLike = tree.getLogLike();
 
-        // TODO: Take valency restriction into account!
-        Vertex[] nodes = updater.getRandomNodesForExpansion(tree);
-        // Vertex[] nodes = updater.getRandomNodesForExpansionSatisfyingRestriction(tree, componentSize);
-        if (nodes == null)
+        // Vertex[] nodes = updater.getRandomNodesForExpansion(tree);
+        List<Vertex[]> possibleExpansions = updater.getNodesEligibleForExpansion(tree, componentSize);
+        if (possibleExpansions.isEmpty())
             return false;
+
+        final Vertex[] nodes = possibleExpansions.get(Utils.generator.nextInt(possibleExpansions.size()));
 
         double bpp = 0;
 
@@ -107,7 +109,8 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
         List<Vertex> innerBlackNodes = tree.getInnerLabelledVertices();
         Set<Vertex> neighbourhood = tree.getNeighbourhood(nodes[0]);
         bpp -= Math.log(2);
-        bpp -= -Math.log((neighbourhood.size() - 1) * innerBlackNodes.size());
+        // bpp -= -Math.log((neighbourhood.size() - 1) * innerBlackNodes.size());
+        bpp -= -Math.log(possibleExpansions.size());
 
         Spannoid.SpannoidUpdater.ExpandEdgeResult expansion = updater.expandEdge(tree, nodes[0], nodes[1]);
         bpp += expansion.bpp;

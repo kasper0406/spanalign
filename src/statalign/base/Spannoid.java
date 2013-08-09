@@ -1649,6 +1649,10 @@ public class Spannoid extends Stoppable implements ITree {
                 bpp += -Math.log(sizeOfUp);
                 bpp += -Math.log((upRoot.left.edgeLength - 0.01)
                         +(upRoot.right.edgeLength - 0.01));
+
+                upRoot.fullWin();
+                upRoot.left.fullWin();
+                upRoot.right.fullWin();
                 bpp += upRoot.hmm3BackProp();
             }
             if (removeDownRoot) {
@@ -1656,6 +1660,10 @@ public class Spannoid extends Stoppable implements ITree {
                 bpp += -Math.log(sizeOfDown);
                 bpp += -Math.log((downRoot.left.edgeLength - 0.01)
                         +(downRoot.right.edgeLength - 0.01));
+
+                downRoot.fullWin();
+                downRoot.left.fullWin();
+                downRoot.right.fullWin();
                 bpp += downRoot.hmm3BackProp();
             }
 
@@ -2058,7 +2066,7 @@ public class Spannoid extends Stoppable implements ITree {
             return (nodes + 1) / 2;
         }
 
-        public Vertex[] getRandomNodesForExpansionSatisfyingRestriction(Spannoid spannoid, final int k) {
+        public List<Vertex[]> getNodesEligibleForExpansion(Spannoid spannoid, final int k) {
             List<Vertex[]> possiblePairs = new ArrayList<Vertex[]>();
 
             for (Set<Vertex> connections : spannoid.componentConnections.values()) {
@@ -2074,10 +2082,7 @@ public class Spannoid extends Stoppable implements ITree {
                 }
             }
 
-            if (possiblePairs.size() == 0)
-                return null;
-
-            return possiblePairs.get(Utils.generator.nextInt(possiblePairs.size()));
+            return possiblePairs;
         }
 
         public void checkSpannoid(Spannoid spannoid) {
