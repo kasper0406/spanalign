@@ -2053,6 +2053,33 @@ public class Spannoid extends Stoppable implements ITree {
             return new Vertex[] { connections[k], connections[j] };
         }
 
+        private int countLabeledNodes(Tree tree) {
+            final int nodes = tree.vertex.size();
+            return (nodes + 1) / 2;
+        }
+
+        public Vertex[] getRandomNodesForExpansionSatisfyingRestriction(Spannoid spannoid, final int k) {
+            List<Vertex[]> possiblePairs = new ArrayList<Vertex[]>();
+
+            for (Set<Vertex> connections : spannoid.componentConnections.values()) {
+                if (connections.size() <= 1) continue;
+
+                for (Vertex v1 : connections) {
+                    for (Vertex v2 : connections) {
+                        if (v1 == v2) continue;
+
+                        if (countLabeledNodes(v1.owner) + countLabeledNodes(v2.owner) - 1 <= k)
+                            possiblePairs.add(new Vertex[] { v1, v2 });
+                    }
+                }
+            }
+
+            if (possiblePairs.size() == 0)
+                return null;
+
+            return possiblePairs.get(Utils.generator.nextInt(possiblePairs.size()));
+        }
+
         public void checkSpannoid(Spannoid spannoid) {
             spannoid.getR();
             spannoid.getLambda();

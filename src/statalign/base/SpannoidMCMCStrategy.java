@@ -1,6 +1,5 @@
 package statalign.base;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -14,10 +13,13 @@ import java.util.Set;
 
 public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spannoid.SpannoidUpdater> {
     private Spannoid.Transplanter transplanter;
+    private final int componentSize;
 
-    public SpannoidMCMCStrategy(Spannoid spannoid) {
+    public SpannoidMCMCStrategy(Spannoid spannoid, int componentSize) {
         super(spannoid, new Spannoid.SpannoidUpdater());
         transplanter = new Spannoid.Transplanter(spannoid);
+
+        this.componentSize = componentSize;
     }
 
     @Override
@@ -95,6 +97,7 @@ public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spa
 
         // TODO: Take valency restriction into account!
         Vertex[] nodes = updater.getRandomNodesForExpansion(tree);
+        // Vertex[] nodes = updater.getRandomNodesForExpansionSatisfyingRestriction(tree, componentSize);
         if (nodes == null)
             return false;
 
