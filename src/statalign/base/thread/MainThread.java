@@ -79,7 +79,13 @@ public class MainThread extends StoppableThread {
                     Spannoid spannoid = new Spannoid(componentSize, bonphyStrategy, nongapped,
                             seqs.getSeqnames().toArray(new String[seqs.size()]),
                             owner.inputData.model, owner.inputData.model.attachedScoringScheme);
-                    mcmc = new Mcmc(new SpannoidMCMCStrategy(spannoid, owner.inputData.pars.componentSize), owner.inputData.pars, owner.postProcMan);
+
+                    int topologyUpdateComponentSizeRestriction = componentSize;
+                    if (!owner.inputData.pars.restrictTopologyChanges)
+                        topologyUpdateComponentSizeRestriction = Integer.MAX_VALUE;
+
+                    mcmc = new Mcmc(new SpannoidMCMCStrategy(spannoid, topologyUpdateComponentSizeRestriction),
+                            owner.inputData.pars, owner.postProcMan);
                     break;
 
                 default:

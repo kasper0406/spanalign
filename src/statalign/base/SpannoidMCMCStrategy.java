@@ -3,14 +3,6 @@ package statalign.base;
 import java.util.List;
 import java.util.Set;
 
-/**
- * !!!ATTENTION!!!
- *
- * TOPOLOGY CHANGE ACCEPTANCE RATE PROBABLY NOT CORRECT!
- *
- * !!!ATTENTION!!!
- */
-
 public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spannoid.SpannoidUpdater> {
     private Spannoid.Transplanter transplanter;
     private final int componentSize;

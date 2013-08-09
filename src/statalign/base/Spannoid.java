@@ -1043,11 +1043,11 @@ public class Spannoid extends Stoppable implements ITree {
          *
          * @param where Where to place the new fake root.
          */
-        private Vertex rerootComponent(Vertex where) {
-            return rerootComponent(where, null);
+        private Vertex rerootComponent(Vertex where, boolean doAlign) {
+            return rerootComponent(where, null, doAlign);
         }
 
-        private Vertex rerootComponent(Vertex where, MuDouble p) {
+        private Vertex rerootComponent(Vertex where, MuDouble p, boolean doAlign) {
             final double edgeSum = where.edgeLength;
 
             List<Direction> directions = new LinkedList<Direction>();
@@ -1103,10 +1103,10 @@ public class Spannoid extends Stoppable implements ITree {
             bpp -= -Math.log(edgeSum - 0.01);
 
             // choose new alignment at root
-            bpp -= -drawNewAlignment(newRoot);
-
-            if (p != null) {
-                p.value = bpp;
+            if (doAlign) {
+                bpp -= -drawNewAlignment(newRoot);
+            } else {
+                makeFakeAlignment(newRoot);
             }
 
             newRoot.left.calcOrphan();
@@ -1116,6 +1116,10 @@ public class Spannoid extends Stoppable implements ITree {
             newRoot.left.checkPointers();
             newRoot.right.checkPointers();
             newRoot.checkPointers();
+
+            if (p != null) {
+                p.value = bpp;
+            }
 
             oldParent.edgeChangeUpdate();
 
@@ -1372,7 +1376,7 @@ public class Spannoid extends Stoppable implements ITree {
                 bpp -= -Math.log(choices.size());
 
                 MuDouble p = new MuDouble();
-                Vertex newRoot = rerootComponent(newRootPosition, p); // brother.left is okay, since otherwise component would be non-contractible!
+                Vertex newRoot = rerootComponent(newRootPosition, p, true); // brother.left is okay, since otherwise component would be non-contractible!
                 bpp -= p.value; // checked
                 labeled.owner.root = newRoot;
                 labeled.owner.vertex.add(newRoot);
@@ -1454,7 +1458,7 @@ public class Spannoid extends Stoppable implements ITree {
             bpp -= -Math.log(choices.size());
 
             MuDouble p = new MuDouble();
-            Vertex newRoot = rerootComponent(rootAt, p);
+            Vertex newRoot = rerootComponent(rootAt, p, true);
             bpp -= p.value; // checked
             downComponent.vertex.add(newRoot);
             downComponent.root = newRoot;
@@ -1584,7 +1588,6 @@ public class Spannoid extends Stoppable implements ITree {
             v.parent.edgeChangeUpdate();
 
             v.checkPointers();
-            v.hmm2AlignWithRecalc();
         }
 
         public class ExpandEdgeResult extends MCMCResult {
@@ -1795,7 +1798,7 @@ public class Spannoid extends Stoppable implements ITree {
             return result;
         }
 
-        private void rerootAtLeaf(Vertex vertex) {
+        private void rerootAtLeafNoRootAlign(Vertex vertex) {
             Vertex otherSubtree = null;
             Vertex fakeRoot = vertex.owner.root;
             final Direction direction = getDirectionFromRoot(vertex);
@@ -1821,7 +1824,7 @@ public class Spannoid extends Stoppable implements ITree {
                 }
 
                 // Reroot at hte leaf
-                rerootComponent(vertex);
+                rerootComponent(vertex, false);
 
                 // Reinsert otherSubtree into the place where fakeRoot was located before.
                 otherSubtree.parent = fakeRoot.parent;
@@ -1837,7 +1840,7 @@ public class Spannoid extends Stoppable implements ITree {
         }
 
         private void getRidOfRooting(Vertex leafOfTree, Vertex whereToPlace, Direction direction) {
-            rerootAtLeaf(leafOfTree);
+            rerootAtLeafNoRootAlign(leafOfTree);
 
             Vertex brother = leafOfTree.brother();
             if (direction == Direction.LEFT) {

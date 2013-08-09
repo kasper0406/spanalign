@@ -34,6 +34,7 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
             new JComboBox<Spannoid.BonphyStrategy>(Spannoid.BonphyStrategy.values());
 
     JTextField componentSize = new JTextField(10);
+    JCheckBox restrictTopologyChanges = new JCheckBox("Restrict topology changes");
 
 	JTextField burnIn = new JTextField(10);
 	JTextField cycles = new JTextField(10);
@@ -70,7 +71,7 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
         pan.add(new JLabel("Component size:"));
         pan.add(componentSize);
         componentSize.setEnabled(true);
-        pan.add(new JLabel(""));
+        pan.add(restrictTopologyChanges);
 
         pan.add(new JLabel("Bonphy strategy:"));
         pan.add(bonphyStrategyChooser);
@@ -144,6 +145,7 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
 	void display(Component c) {
         treeChooser.setSelectedItem(pars.treeType);
         componentSize.setText(Integer.toString(pars.componentSize));
+        restrictTopologyChanges.setSelected(pars.restrictTopologyChanges);
         bonphyStrategyChooser.setSelectedItem(pars.bonphyStrategy);
 
 		burnIn.setText(Integer.toString(pars.burnIn));
@@ -177,6 +179,7 @@ public class McmcSettingsDlg extends JDialog implements ActionListener, KeyListe
 			try {
                 pars.treeType = (MCMCPars.TreeType) treeChooser.getSelectedItem(); // Safe cast
                 pars.componentSize = Integer.parseInt(componentSize.getText());
+                pars.restrictTopologyChanges = restrictTopologyChanges.isSelected();
                 pars.bonphyStrategy = (Spannoid.BonphyStrategy) bonphyStrategyChooser.getSelectedItem(); // Safe cast
 
 				pars.burnIn = Integer.parseInt(burnIn.getText());
