@@ -936,42 +936,6 @@ public class Spannoid extends Stoppable implements ITree {
                 reference.last.right = actual.last;
         }
 
-        private void copyAlignmentColumn(Vertex copy, Vertex original) {
-            copy.length = original.length;
-
-            AlignColumn cur = original.first;
-
-            AlignColumn prev = null;
-            while (cur != null) {
-                AlignColumn ac = new AlignColumn(copy);
-                ac.orphan = cur.orphan;
-                ac.parent = cur.parent;
-                ac.emptyWindow = cur.emptyWindow;
-                ac.selected = cur.selected;
-                ac.left = cur.left;
-                ac.right = cur.right;
-                if (cur.seq != null)
-                    ac.seq = cur.seq.clone();
-
-                ac.prev = prev;
-                if (prev == null)
-                    copy.first = ac;
-                else
-                    prev.next = ac;
-
-                prev = ac;
-                cur = cur.next;
-            }
-            copy.last = prev;
-        }
-
-        private void copyVertex(Vertex copy, Vertex original) {
-            copy.name = original.name;
-            copy.seq = original.seq;
-
-            copyAlignmentColumn(copy, original);
-        }
-
         private void dfsMoveVertex(Vertex cur, Vertex prev, List<Vertex> labeled, List<Vertex> unlabeled, Tree newComponent) {
             boolean labeledNode = cur.seq != null && !cur.seq.isEmpty();
             cur.owner = newComponent;
@@ -1203,7 +1167,7 @@ public class Spannoid extends Stoppable implements ITree {
 
                 v.topologyBackup.first = v.first;
                 v.topologyBackup.last = v.last;
-                copyVertex(v, v.topologyBackup);
+                v.copyFrom(v.topologyBackup);
             }
 
             Map<AlignColumn, AlignColumn> oldToNewMap = new HashMap<AlignColumn, AlignColumn>();
@@ -1221,7 +1185,7 @@ public class Spannoid extends Stoppable implements ITree {
 
                 v.left.topologyBackup.first = v.left.first;
                 v.left.topologyBackup.last = v.left.last;
-                copyVertex(v.left, v.left.topologyBackup);
+                v.left.copyFrom(v.left.topologyBackup);
 
                 v.right.topologyBackup = new Vertex();
                 v.right.topologyBackup.name = v.right.name;
@@ -1230,7 +1194,7 @@ public class Spannoid extends Stoppable implements ITree {
 
                 v.right.topologyBackup.first = v.right.first;
                 v.right.topologyBackup.last = v.right.last;
-                copyVertex(v.right, v.right.topologyBackup);
+                v.right.copyFrom(v.right.topologyBackup);
 
                 backupTree(v.left);
                 backupTree(v.right);
@@ -1417,7 +1381,7 @@ public class Spannoid extends Stoppable implements ITree {
             // Handle up component
             upComponent.root = originalComponent.root;
 
-            copyVertex(up, labeled);
+            up.copyFrom(labeled);
 
             // Update steiner ACs to point to up instead of labeled
             updateAlignColumnReferences(up, labeled);
@@ -1433,7 +1397,7 @@ public class Spannoid extends Stoppable implements ITree {
             // Handle down component
             Vertex brother = labeled.brother();
 
-            copyVertex(down, labeled);
+            down.copyFrom(labeled);
 
             // Make (non-trivial and fast) alignment of down and brother
             updateAlignColumnReferences(down, up);
@@ -1691,7 +1655,7 @@ public class Spannoid extends Stoppable implements ITree {
             bpp -= -(labeledEdgeLength - 0.01);
 
             Vertex labeled = new Vertex(newComponent, labeledEdgeLength);
-            copyVertex(labeled, up);
+            labeled.copyFrom(up);
 
             Vertex steiner = new Vertex(newComponent, up.edgeLength);
 

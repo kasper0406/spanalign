@@ -91,50 +91,23 @@ class Transplanter extends MCMCMove<Spannoid, TransplantResult> {
         source.parent.fullWin();
         bpp += source.hmm2BackProp();
 
-        // update vertex information
-        source.seq = dest.seq;
-        source.length = dest.length;
-        source.name = dest.name;
-
         // save old alignment
         source.old.first = source.first;
         source.old.last = source.last;
 
-        // create new alignment columns for new sequence
-        source.first = new AlignColumn(source);
-        source.first.seq = dest.first.seq.clone();
-        source.first.parent = source.parent.last;
-        AlignColumn prev = source.first;
-        for (AlignColumn cur = dest.first.next; cur != dest.last; cur = cur.next) {
-            AlignColumn actual = new AlignColumn(source);
-            actual.seq = cur.seq.clone();
-            actual.parent = source.parent.last;
+        source.copyFrom(dest);
 
-            actual.prev = prev;
-            prev.next = actual;
-
-            prev = actual;
+        // dummy align to parent
+        for (AlignColumn cur = source.first; cur != null; cur = cur.next) {
+            cur.parent = source.parent.last;
+            cur.orphan = (cur != source.last);
         }
-        AlignColumn last = new AlignColumn(source);
-        last.parent = source.parent.last;
-        last.orphan = false;
-        last.prev = prev;
-        prev.next = last;
-        source.last = last;
-
-        // destroy parent alignment pointers
-        for (AlignColumn c = source.parent.first; c != source.parent.last; c = c.next) {
+        for (AlignColumn c = source.parent.first; c != null; c = c.next) {
             if (source.parent.left == source) {
-                c.left = null;
+                c.left = (c != source.parent.last) ? null : source.last;
             } else {
-                c.right = null;
+                c.right = (c != source.parent.last) ? null : source.last;
             }
-        }
-
-        if (source.parent.left == source) {
-            source.parent.last.left = source.last;
-        } else {
-            source.parent.last.right = source.last;
         }
 
         source.fullWin();
@@ -184,6 +157,7 @@ class Transplanter extends MCMCMove<Spannoid, TransplantResult> {
             }
         }
 
+        source.calcOrphan();
         source.calcAllUp();
     }
 }
