@@ -631,6 +631,16 @@ public class Spannoid extends Stoppable implements ITree {
         return componentConnections.get(vertexId);
     }
 
+    public void moveComponent(Vertex source, Vertex destination) {
+        int sourceId = labeledVertexIds.get(source);
+        componentConnections.get(sourceId).remove(source);
+
+        int destinationId = labeledVertexIds.get(destination);
+        componentConnections.get(destinationId).add(source);
+
+        labeledVertexIds.put(source, destinationId);
+    }
+
     public static void main(String[] args) throws Exception {
         String tree = "((B:1,(C:1,(D:1,(E:1,(F:1,G:1):1):1):1):1):1)A:1;";
 
@@ -926,42 +936,6 @@ public class Spannoid extends Stoppable implements ITree {
                 reference.last.right = actual.last;
         }
 
-        private void copyAlignmentColumn(Vertex copy, Vertex original) {
-            copy.length = original.length;
-
-            AlignColumn cur = original.first;
-
-            AlignColumn prev = null;
-            while (cur != null) {
-                AlignColumn ac = new AlignColumn(copy);
-                ac.orphan = cur.orphan;
-                ac.parent = cur.parent;
-                ac.emptyWindow = cur.emptyWindow;
-                ac.selected = cur.selected;
-                ac.left = cur.left;
-                ac.right = cur.right;
-                if (cur.seq != null)
-                    ac.seq = cur.seq.clone();
-
-                ac.prev = prev;
-                if (prev == null)
-                    copy.first = ac;
-                else
-                    prev.next = ac;
-
-                prev = ac;
-                cur = cur.next;
-            }
-            copy.last = prev;
-        }
-
-        private void copyVertex(Vertex copy, Vertex original) {
-            copy.name = original.name;
-            copy.seq = original.seq;
-
-            copyAlignmentColumn(copy, original);
-        }
-
         private void dfsMoveVertex(Vertex cur, Vertex prev, List<Vertex> labeled, List<Vertex> unlabeled, Tree newComponent) {
             boolean labeledNode = cur.seq != null && !cur.seq.isEmpty();
             cur.owner = newComponent;
@@ -1193,7 +1167,7 @@ public class Spannoid extends Stoppable implements ITree {
 
                 v.topologyBackup.first = v.first;
                 v.topologyBackup.last = v.last;
-                copyVertex(v, v.topologyBackup);
+                v.copyFrom(v.topologyBackup);
             }
 
             Map<AlignColumn, AlignColumn> oldToNewMap = new HashMap<AlignColumn, AlignColumn>();
@@ -1211,7 +1185,7 @@ public class Spannoid extends Stoppable implements ITree {
 
                 v.left.topologyBackup.first = v.left.first;
                 v.left.topologyBackup.last = v.left.last;
-                copyVertex(v.left, v.left.topologyBackup);
+                v.left.copyFrom(v.left.topologyBackup);
 
                 v.right.topologyBackup = new Vertex();
                 v.right.topologyBackup.name = v.right.name;
@@ -1220,7 +1194,7 @@ public class Spannoid extends Stoppable implements ITree {
 
                 v.right.topologyBackup.first = v.right.first;
                 v.right.topologyBackup.last = v.right.last;
-                copyVertex(v.right, v.right.topologyBackup);
+                v.right.copyFrom(v.right.topologyBackup);
 
                 backupTree(v.left);
                 backupTree(v.right);
@@ -1407,7 +1381,7 @@ public class Spannoid extends Stoppable implements ITree {
             // Handle up component
             upComponent.root = originalComponent.root;
 
-            copyVertex(up, labeled);
+            up.copyFrom(labeled);
 
             // Update steiner ACs to point to up instead of labeled
             updateAlignColumnReferences(up, labeled);
@@ -1423,7 +1397,7 @@ public class Spannoid extends Stoppable implements ITree {
             // Handle down component
             Vertex brother = labeled.brother();
 
-            copyVertex(down, labeled);
+            down.copyFrom(labeled);
 
             // Make (non-trivial and fast) alignment of down and brother
             updateAlignColumnReferences(down, up);
@@ -1681,7 +1655,7 @@ public class Spannoid extends Stoppable implements ITree {
             bpp -= -(labeledEdgeLength - 0.01);
 
             Vertex labeled = new Vertex(newComponent, labeledEdgeLength);
-            copyVertex(labeled, up);
+            labeled.copyFrom(up);
 
             Vertex steiner = new Vertex(newComponent, up.edgeLength);
 
@@ -2099,204 +2073,4 @@ public class Spannoid extends Stoppable implements ITree {
             }
         }
     }
-
-    static class Transplanter extends MCMCMove<Spannoid, TransplantResult> {
-        public Transplanter(Spannoid tree) {
-            super(tree);
-        }
-
-        private boolean canSample() {
-            return tree.getInnerLabelledVertices().size() > 0;
-        }
-
-        public boolean sample() {
-            if (!canSample())
-                return false;
-            return super.sample();
-        }
-
-        @Override
-        protected TransplantResult jump() {
-            TransplantResult result = new TransplantResult();
-
-            // choose source vertex
-            List<Vertex> sources = tree.getInnerLabelledVertices();
-            result.source = sources.get(Utils.generator.nextInt(sources.size()));
-            result.bpp -= Math.log(sources.size());
-
-            // choose destination vertex
-            List<Vertex> destinations = getDestinations(result.source);
-            result.destination = destinations.get(Utils.generator.nextInt(destinations.size()));
-            result.bpp -= Math.log(destinations.size());
-
-            // where to move the source vertex back to in case of rejection
-            result.prev = getArbitraryNeighbour(result.source);
-
-            result.bpp += moveSubtree(result.source, result.destination);
-
-            result.bpp += Math.log(tree.getInnerLabelledVertices().size());
-            result.bpp += Math.log(getDestinations(result.destination).size());
-
-            return result;
-        }
-
-        @Override
-        protected void restore(TransplantResult result) {
-            restoreSubtree(result.source, result.prev);
-        }
-
-        private Vertex getArbitraryNeighbour(Vertex vertex) {
-            int vertexId = tree.labeledVertexIds.get(vertex);
-            Set<Vertex> neighbourhood = tree.componentConnections.get(vertexId);
-            for (Vertex neighbour : neighbourhood) {
-                if (neighbour != vertex) {
-                    return neighbour;
-                }
-            }
-
-            // should never reach this
-            return null;
-        }
-
-        private List<Vertex> getDestinations(Vertex source) {
-            List<Vertex> destinations = new ArrayList<Vertex>();
-
-            int sourceId = tree.labeledVertexIds.get(source);
-            Set<Vertex> neighbourhood = tree.componentConnections.get(sourceId);
-
-            for (Vertex neighbour : neighbourhood) {
-                if (neighbour == source) {
-                    continue;
-                }
-
-                for (Vertex v : neighbour.owner.vertex) {
-                    if (v != neighbour && v.name != null) {
-                        destinations.add(v);
-                    }
-                }
-            }
-
-            return destinations;
-        }
-
-        private double moveSubtree(Vertex source, Vertex dest){
-            // update internal Spannoid structure
-            moveComponent(source, dest);
-
-            double bpp = 0;
-
-            source.fullWin();
-            source.parent.fullWin();
-            bpp += source.hmm2BackProp();
-
-            // update vertex information
-            source.seq = dest.seq;
-            source.length = dest.length;
-            source.name = dest.name;
-
-            // save old alignment
-            source.old.first = source.first;
-            source.old.last = source.last;
-
-            // create new alignment columns for new sequence
-            source.first = new AlignColumn(source);
-            source.first.seq = dest.first.seq.clone();
-            source.first.parent = source.parent.last;
-            AlignColumn prev = source.first;
-            for (AlignColumn cur = dest.first.next; cur != dest.last; cur = cur.next) {
-                AlignColumn actual = new AlignColumn(source);
-                actual.seq = cur.seq.clone();
-                actual.parent = source.parent.last;
-
-                actual.prev = prev;
-                prev.next = actual;
-
-                prev = actual;
-            }
-            AlignColumn last = new AlignColumn(source);
-            last.parent = source.parent.last;
-            last.orphan = false;
-            last.prev = prev;
-            prev.next = last;
-            source.last = last;
-
-            // destroy parent alignment pointers
-            for (AlignColumn c = source.parent.first; c != source.parent.last; c = c.next) {
-                if (source.parent.left == source) {
-                    c.left = null;
-                } else {
-                    c.right = null;
-                }
-            }
-
-            if (source.parent.left == source) {
-                source.parent.last.left = source.last;
-            } else {
-                source.parent.last.right = source.last;
-            }
-
-            source.fullWin();
-            source.parent.fullWin();
-            bpp += source.hmm2AlignWithRecalc();
-
-            source.calcAllUp();
-
-            return bpp;
-        }
-
-        private void restoreSubtree(Vertex source, Vertex prev){
-            // update internal Spannoid structure
-            moveComponent(source, prev);
-
-            // restore old vertex information
-            source.seq = prev.seq;
-            source.length = prev.length;
-            source.name = prev.name;
-
-            // restore old alignment
-            source.first = source.old.first;
-            source.last = source.old.last;
-
-            boolean isLeft = (source.parent.left == source);
-
-            AlignColumn c = source.first;
-            AlignColumn p = source.parent.first;
-            while (p != null) {
-                if (c.parent != p) {
-                    if (isLeft) {
-                        p.left = null;
-                    } else {
-                        p.right = null;
-                    }
-                    p = p.next;
-                } else if (c.orphan) {
-                    c = c.next;
-                } else {
-                    if (isLeft) {
-                        p.left = c;
-                    } else {
-                        p.right = c;
-                    }
-                    p = p.next;
-                    c = c.next;
-                }
-            }
-
-            source.calcAllUp();
-        }
-
-        private void moveComponent(Vertex source, Vertex destination) {
-            int sourceId = tree.labeledVertexIds.get(source);
-            int destinationId = tree.labeledVertexIds.get(destination);
-
-            tree.componentConnections.get(sourceId).remove(source);
-            tree.componentConnections.get(destinationId).add(source);
-
-            tree.labeledVertexIds.put(source, destinationId);
-        }
-    }
-}
-
-class TransplantResult extends MCMCResult {
-    Vertex source, destination, prev;
 }

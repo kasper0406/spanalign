@@ -4,12 +4,12 @@ import java.util.List;
 import java.util.Set;
 
 public class SpannoidMCMCStrategy extends AbstractTreeMCMCStrategy<Spannoid, Spannoid.SpannoidUpdater> {
-    private Spannoid.Transplanter transplanter;
+    private Transplanter transplanter;
     private final int componentSize;
 
     public SpannoidMCMCStrategy(Spannoid spannoid, int componentSize) {
         super(spannoid, new Spannoid.SpannoidUpdater());
-        transplanter = new Spannoid.Transplanter(spannoid);
+        transplanter = new Transplanter(spannoid);
 
         this.componentSize = componentSize;
     }

@@ -29,5 +29,13 @@ public abstract class MCMCMove<T extends ITree, R extends MCMCResult> {
 }
 
 class MCMCResult {
-    double bpp = 0;
+    double bpp;
+
+    public MCMCResult() {
+        bpp = 0;
+    }
+
+    public MCMCResult(double bpp) {
+        this.bpp = bpp;
+    }
 }

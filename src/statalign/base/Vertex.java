@@ -223,6 +223,36 @@ public class Vertex {
 
     }
 
+    public void copyFrom(Vertex original) {
+        name = original.name;
+        seq = original.seq;
+        length = original.length;
+
+        AlignColumn cur = original.first;
+        AlignColumn prev = null;
+        while (cur != null) {
+            AlignColumn ac = new AlignColumn(this);
+            ac.orphan = cur.orphan;
+            ac.parent = cur.parent;
+            ac.emptyWindow = cur.emptyWindow;
+            ac.selected = cur.selected;
+            ac.left = cur.left;
+            ac.right = cur.right;
+            if (cur.seq != null)
+                ac.seq = cur.seq.clone();
+
+            ac.prev = prev;
+            if (prev == null)
+                this.first = ac;
+            else
+                prev.next = ac;
+
+            prev = ac;
+            cur = cur.next;
+        }
+        this.last = prev;
+    }
+
     Vertex brother() {
         return parent.left == this ? parent.right : parent.left;
     }
