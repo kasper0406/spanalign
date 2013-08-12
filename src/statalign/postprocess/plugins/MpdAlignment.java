@@ -129,17 +129,15 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 		sequences = null;
 		viterbialignment = new String[sizeOfAlignments];
 
-        if (show) {
-            gui_ref.alignment = new String[input.seqs.size()];
-            for (int i = 0; i < input.seqs.size(); i++) {
-                gui_ref.alignment[i] = input.seqs.getSeqNamePadded(i) + "\t" + input.seqs.getSequence(i);
-            }
-            Arrays.sort(gui_ref.alignment);
+        String[] sorted = new String[input.seqs.size()];
+        for (int i = 0; i < input.seqs.size(); i++) {
+            sorted[i] = input.seqs.getSeqNamePadded(i) + "\t" + input.seqs.getSequence(i);
         }
+        Arrays.sort(sorted);
 
         String[][] temp = new String[sizeOfAlignments][];
         for (int i = 0; i < sizeOfAlignments; i++){
-            temp[i] = gui_ref.alignment[i].split("\t");
+            temp[i] = sorted[i].split("\t");
         }
         Arrays.sort(temp, compStringArr);
         String[] ref = new String[sizeOfAlignments];
@@ -147,6 +145,9 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
             ref[i] = temp[i][1];
         }
         scorer = new AlignmentScorer(ref);
+
+        if (show)
+            gui_ref.alignment = sorted;
 
 		network = new ColumnNetwork();
 
