@@ -26,6 +26,13 @@ public class ParameterHistogram extends Postprocess {
 
     private int samples = 0;
 
+    public ParameterHistogram() {
+        screenable = true;
+        outputable = true;
+        postprocessable = true;
+        postprocessWrite = true;
+    }
+
     @Override
     public String getTabName() {
         return "Parameter histograms";
@@ -48,34 +55,54 @@ public class ParameterHistogram extends Postprocess {
 
     @Override
     public void setSampling(boolean enabled) {
-        // DJ Ötzi - Live is Life
     }
 
     @Override
     public void newSample(State state, int no, int total) {
         samples++;
 
-        RMeasurements.append(state.indelParams[0] + "\n");
+        RMeasurements.append("R\t" + state.indelParams[0] + "\n");
         RMax = Math.max(RMax, state.indelParams[0]);
         RMin = Math.min(RMin, state.indelParams[0]);
 
-        lambdaMeasurements.append(state.indelParams[1] + "\n");
+        lambdaMeasurements.append("λ\t" + state.indelParams[1] + "\n");
         lambdaMax = Math.max(lambdaMax, state.indelParams[1]);
         lambdaMin = Math.min(lambdaMin, state.indelParams[1]);
 
-        muMeasurements.append(state.indelParams[2] + "\n");
+        muMeasurements.append("μ\t" + state.indelParams[2] + "\n");
         muMax = Math.max(muMax, state.indelParams[2]);
         muMin = Math.min(muMin, state.indelParams[2]);
     }
 
     @Override
-    public void afterLastSample() {
-        writeAndGenerateHistogram("R", RMeasurements, 50, RMin, RMax);
-        writeAndGenerateHistogram("lambda", lambdaMeasurements, 50, lambdaMin, lambdaMax);
-        writeAndGenerateHistogram("mu", muMeasurements, 50, muMin, muMax);
+    public String getFileExtension() {
+        return "modelparams";
+    }
 
-        gui.setReady();
-        gui.repaint();
+    @Override
+    public void afterLastSample() {
+        if (show) {
+            writeAndGenerateHistogram("R", RMeasurements, 50, RMin, RMax);
+            writeAndGenerateHistogram("lambda", lambdaMeasurements, 50, lambdaMin, lambdaMax);
+            writeAndGenerateHistogram("mu", muMeasurements, 50, muMin, muMax);
+
+            gui.setReady();
+            gui.repaint();
+        } else {
+            if (postprocessWrite) {
+                writeHistogramData("R", RMeasurements);
+                writeHistogramData("lambda", lambdaMeasurements);
+                writeHistogramData("mu", muMeasurements);
+            }
+        }
+    }
+
+    private void writeHistogramData(String name, StringBuilder measurements) {
+        try {
+            outputFile.write(measurements.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void writeAndGenerateHistogram(String name, StringBuilder measurements, double n, double min, double max) {

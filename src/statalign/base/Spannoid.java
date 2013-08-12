@@ -11,15 +11,17 @@ import statalign.postprocess.plugins.SpannoidViewer;
 import statalign.postprocess.plugins.TreeNode;
 import statalign.postprocess.utils.NewickParser;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.net.URL;
 import java.util.*;
 
 public class Spannoid extends Stoppable implements ITree {
     private int n;
     private List<Tree> components = new ArrayList<Tree>();
 
-    private final String BONPHY_PATH = "/Users/kasper0406/Desktop/bonphy/bonphy.py";
+    // private final String BONPHY_PATH = "/Users/kasper0406/Desktop/bonphy/bonphy.py";
 
     private SubstitutionModel substitutionModel;
 
@@ -74,7 +76,9 @@ public class Spannoid extends Stoppable implements ITree {
         for (int i = 0; i < names.length; i++)
             nameMap.put(names[i], i);
 
-        Process bonphy = Runtime.getRuntime().exec(BONPHY_PATH + " -k" + componentSize
+        File bonphyDir = new File("bonphy/bonphy.py");
+        System.out.println("Bonphy found at: " + bonphyDir.getPath());
+        Process bonphy = Runtime.getRuntime().exec(bonphyDir.getPath() + " -k" + componentSize
                 + " -s" + optimizationStrategy.getOptimizationNumber());
         OutputStreamWriter output = new OutputStreamWriter(bonphy.getOutputStream());
         output.write(njTree);

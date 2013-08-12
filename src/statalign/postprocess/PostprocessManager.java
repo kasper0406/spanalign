@@ -220,7 +220,9 @@ public class PostprocessManager {
 	}
 	
 	public void initRun(InputData inputData) throws IOException {
-		logFile = new FileWriter(new File(inputData.outputPath, inputData.title + ".log"));
+        final File log = new File(inputData.outputPath, inputData.title + ".log");
+        log.getParentFile().mkdirs();
+		logFile = new FileWriter(log);
 
 		System.out.println();
 		for (Postprocess p : plugins) {

@@ -16,6 +16,10 @@ public class SpannoidViewer extends Postprocess {
     private JPanel panel = new JPanel(new BorderLayout());
     private SpannoidViewerGUI spannoid = new SpannoidViewerGUI();
 
+    public SpannoidViewer() {
+        screenable = true;
+    }
+
     @Override
     public String getTabName() {
         return "Spannoid Viewer";
@@ -43,12 +47,16 @@ public class SpannoidViewer extends Postprocess {
 
     @Override
     public void beforeFirstSample(InputData input) {
+        if (!show) return;
+
         panel.removeAll();
         JScrollPane scrollPane = new JScrollPane(spannoid);
         panel.add(scrollPane);
     }
 
     public void newSample(State state, int no, int total) {
+        if (!show) return;
+
         PrintWriter out = null;
         try {
             out = new PrintWriter("spannoid.dot", "UTF-8");

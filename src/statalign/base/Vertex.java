@@ -2840,6 +2840,8 @@ public class Vertex {
 
     /** this function checks if the pointers are all right... */
     void checkPointers() {
+        /*
+
         if (parent != null && !(parent.left == this || parent.right == this))
             throw new RuntimeException("Invalid tree structure!");
 
@@ -2860,7 +2862,6 @@ public class Vertex {
                 winLastFound = i;
             i++;
 
-            /*
             if (p.owner != this)
                 throw new RuntimeException("Invalid owner!");
 
@@ -2869,7 +2870,6 @@ public class Vertex {
 
             if ((p.left != null && p.left.owner != left) || (p.right != null && p.right.owner != right))
                 throw new RuntimeException("Invalid owner to side");
-                */
 
             if (p.left != null && (p.left.orphan || p.left.parent != p)) {
                 throw new Error("Problem is vertex " + this + ":\np is: " + p + " p.left is " + p.left + " p.left.orphan: " + p.left.orphan +
@@ -2886,11 +2886,6 @@ public class Vertex {
 
         if (i - 1 != length)
             throw new RuntimeException("Wrong length!");
-
-        /*
-        if (winFirstFound == -1 || winLastFound == -1 || winLastFound - winFirstFound != winLength)
-            throw new RuntimeException("Invalid window positions!");
-            */
 
         if (left != null) {
             for (AlignColumn l = left.first; l != null; l = l.next) {
@@ -2968,6 +2963,8 @@ public class Vertex {
         if (last.orphan == true || (parent != null && last.parent != parent.last) ||
                 (left != null && last.left != left.last) || (right != null && last.right != right.last))
             throw new RuntimeException();
+
+    */
     }
 
 //    /**

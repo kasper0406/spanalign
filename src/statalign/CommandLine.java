@@ -16,6 +16,7 @@ import ml.options.Options;
 import ml.options.Options.Multiplicity;
 import ml.options.Options.Separator;
 import statalign.base.AutomateParamSettings;
+import statalign.base.MCMCPars;
 import statalign.base.MainManager;
 import statalign.base.Utils;
 import statalign.io.RawSequences;
@@ -81,7 +82,11 @@ public class CommandLine {
 				.addOption("ot", Separator.EQUALS)
 				.addOption("log", Separator.EQUALS)
 				.addOption("plugin", Separator.COLON, Multiplicity.ZERO_OR_MORE)
-				.addOption("automate", Separator.EQUALS, Multiplicity.ZERO_OR_ONE);
+				.addOption("automate", Separator.EQUALS, Multiplicity.ZERO_OR_ONE)
+                .addOption("outputdir", Separator.EQUALS)
+                .addOption("spannoid", Separator.EQUALS)
+                .addOption("k", Separator.EQUALS)
+                .addOption("restrictmoves", Separator.EQUALS);
 
 		OptionSet set;
 		if ((set = opt.getMatchingSet(false, false)) == null) {
@@ -106,8 +111,14 @@ public class CommandLine {
 					return error("error reading input file " + inputFile);
 				}
 			}
-			
-			manager.inputData.setBaseFile(new File(set.getData().get(0)));
+
+            if (set.isSet("outputdir")) {
+                final File outputDir = new File(set.getOption("outputdir").getResultValue(0) + "/output"); // Hack because StatAlign expects base file.
+                System.out.println("Setting output dir to: " + outputDir.getParent());
+                manager.inputData.setBaseFile(outputDir);
+            } else {
+			    manager.inputData.setBaseFile(new File(set.getData().get(0)));
+            }
 
 			if (set.isSet("subst")) {
 				String modelName = set.getOption("subst").getResultValue(0);
@@ -161,6 +172,18 @@ public class CommandLine {
 					}
 				}
 			}
+
+            if (set.isSet("spannoid") && "true".equals(set.getOption("spannoid").getResultValue(0))) {
+                manager.inputData.pars.treeType = MCMCPars.TreeType.SPANNOID;
+
+                if (set.isSet("k"))
+                    manager.inputData.pars.componentSize = parseValue(set.getOption("k").getResultValue(0));
+
+                if (set.isSet("restrictmoves") && "false".equals(set.getOption("restrictmoves").getResultValue(0)))
+                    manager.inputData.pars.restrictTopologyChanges = false;
+            } else {
+                manager.inputData.pars.treeType = MCMCPars.TreeType.STEINER;
+            }
 
 			if (set.isSet("mcmc")) {
 				String mcmcPars = set.getOption("mcmc").getResultValue(0);
