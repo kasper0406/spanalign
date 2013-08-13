@@ -1,18 +1,45 @@
 package statalign.postprocess.plugins;
 
+import statalign.base.InputData;
 import statalign.base.Mcmc;
 import statalign.base.State;
 import statalign.postprocess.Postprocess;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Comparator;
 
 public class DiagnosticsView extends Postprocess {
     DiagnosticsGUI gui = new DiagnosticsGUI();
 
+    private InputData inputData;
+    private AlignmentScorer scorer;
+
+    private MpdAlignment mpdAlignment;
+
+    public DiagnosticsView() {
+        screenable = true;
+        outputable = true;
+        postprocessable = true;
+        postprocessWrite = true;
+    }
+
     @Override
     public String getTabName() {
         return "Diagnostics";
+    }
+
+    @Override
+    public String[] getDependences() {
+        return new String[] { "statalign.postprocess.plugins.CurrentAlignment", "statalign.postprocess.plugins.MpdAlignment"};
+    }
+
+    @Override
+    public void refToDependences(Postprocess[] plugins) {
+        // curAlig = (CurrentAlignment) plugins[0];
+        mpdAlignment = (MpdAlignment) plugins[1];
     }
 
     @Override
@@ -25,9 +52,50 @@ public class DiagnosticsView extends Postprocess {
         return gui;
     }
 
+    @Override
+    public String getFileExtension() {
+        return "stats";
+    }
+
+    static Comparator<String[]> compStringArr = new Comparator<String[]>() {
+        @Override
+        public int compare(String[] a1, String[] a2) {
+            return a1[0].compareTo(a2[0]);
+        }};
+
+    @Override
+    public void beforeFirstSample(InputData inputData) {
+        this.inputData = inputData;
+
+        try {
+            if (postprocessWrite)
+                outputFile.write("Sample\tn\tk\tLogLike\tMPD.bali\n"); // \tComponents\tAvg.comp. size\tMax comp.size\tMin comp. size\tAvg. edgelen (leaf)\tMin edgelen (leaf)\t#edges<0.1 (leaf)");
+        } catch (IOException e) {
+            // Ignore..
+        }
+    }
+
+    @Override
     public void newSample(State state, int no, int total) {
-        gui.update(mcmc, state);
-        gui.repaint();
+        if (show) {
+            gui.update(mcmc, state);
+            gui.repaint();
+        }
+
+        if (postprocessWrite) {
+            final int n = inputData.seqs.size();
+            final int k = inputData.pars.componentSize;
+            final double logLike = state.logLike;
+            final double mpdBali = mpdAlignment.getScore();
+
+            try {
+                outputFile.write(String.format("%d\t%d\t%d\t%f\t%f\n", // \t%d\t%f\t%d\t%d\t%f\t%f\t%d",
+                        no, n, k, logLike, mpdBali)); // , components, avgCompSize, maxCompSize,
+                        // minCompSize, avgEdgeLen, minEdgeLen, shortEdges));
+            } catch (IOException e) {
+                // Ignore...
+            }
+        }
     }
 
     @Override

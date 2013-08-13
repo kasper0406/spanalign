@@ -80,21 +80,46 @@ public class Spannoid extends Stoppable implements ITree {
         System.out.println("Bonphy found at: " + bonphyDir.getPath());
         Process bonphy = Runtime.getRuntime().exec(bonphyDir.getPath() + " -k" + componentSize
                 + " -s" + optimizationStrategy.getOptimizationNumber());
+        Scanner scanner = new Scanner(bonphy.getInputStream()).useDelimiter("\\n");
         OutputStreamWriter output = new OutputStreamWriter(bonphy.getOutputStream());
         output.write(njTree);
         output.close();
 
         bonphy.waitFor();
-        Scanner scanner = new Scanner(bonphy.getInputStream()).useDelimiter("\\n");
         scanner.next(); // Skip first line
         while (scanner.hasNext()) {
-            String newickComponent = scanner.next();
+            final String newickComponent = scanner.next();
+
+            System.out.println(newickComponent);
+
             NewickParser parser = new NewickParser(newickComponent);
             TreeNode root = parser.parse();
             root = shrinkTree(root);
             createComponents(root, model, nameMap, convertedSequences, sequences);
         }
         scanner.close();
+    }
+
+    public Spannoid(int componentSize, String[] initialTopology,
+                    String[] sequences, String[] names,
+                    SubstitutionModel model, SubstitutionScore ss) {
+        this.substitutionModel = model;
+        n = sequences.length;
+        for (int i = 0; i < n; i++)
+            componentConnections.put(i, new HashSet<Vertex>());
+
+        int[][][] convertedSequences = convertSequences(sequences, model, ss);
+
+        Map<String, Integer> nameMap = new HashMap<String, Integer>();
+        for (int i = 0; i < names.length; i++)
+            nameMap.put(names[i], i);
+
+        for (String component : initialTopology) {
+            NewickParser parser = new NewickParser(component);
+            TreeNode root = parser.parse();
+            root = shrinkTree(root);
+            createComponents(root, model, nameMap, convertedSequences, sequences);
+        }
     }
 
     private TreeNode shrinkTree(TreeNode node) {
@@ -1225,6 +1250,9 @@ public class Spannoid extends Stoppable implements ITree {
             v.topologyBackup.edgeLength = v.edgeLength;
             v.topologyBackup.leafCount = v.leafCount;
 
+            v.topologyBackup.indelLogLike = v.indelLogLike;
+            v.topologyBackup.orphanLogLike = v.orphanLogLike;
+
             v.topologyBackup.parent = v.parent;
             v.topologyBackup.right = v.right;
             v.topologyBackup.left = v.left;
@@ -1261,6 +1289,9 @@ public class Spannoid extends Stoppable implements ITree {
             v.winFirst = v.topologyBackup.winFirst;
             v.winLast = v.topologyBackup.winLast;
             v.winLength = v.topologyBackup.winLength;
+
+            v.indelLogLike = v.topologyBackup.indelLogLike;
+            v.orphanLogLike = v.topologyBackup.orphanLogLike;
 
             v.hmm2TransMatrix = v.topologyBackup.hmm2TransMatrix;
             v.hmm2PropTransMatrix = v.topologyBackup.hmm2PropTransMatrix;

@@ -75,10 +75,18 @@ public class MainThread extends StoppableThread {
 
                 case SPANNOID:
                     int componentSize = owner.inputData.pars.componentSize;
-                    Spannoid.BonphyStrategy bonphyStrategy = owner.inputData.pars.bonphyStrategy;
-                    Spannoid spannoid = new Spannoid(componentSize, bonphyStrategy, nongapped,
-                            seqs.getSeqnames().toArray(new String[seqs.size()]),
-                            owner.inputData.model, owner.inputData.model.attachedScoringScheme);
+
+                    Spannoid spannoid;
+                    if (owner.inputData.initialTopology == null) {
+                        Spannoid.BonphyStrategy bonphyStrategy = owner.inputData.pars.bonphyStrategy;
+                        spannoid = new Spannoid(componentSize, bonphyStrategy, nongapped,
+                                seqs.getSeqnames().toArray(new String[seqs.size()]),
+                                owner.inputData.model, owner.inputData.model.attachedScoringScheme);
+                    } else {
+                        spannoid = new Spannoid(componentSize, owner.inputData.initialTopology,
+                                nongapped, seqs.getSeqnames().toArray(new String[seqs.size()]),
+                                owner.inputData.model, owner.inputData.model.attachedScoringScheme);
+                    }
 
                     int topologyUpdateComponentSizeRestriction = componentSize;
                     if (!owner.inputData.pars.restrictTopologyChanges)

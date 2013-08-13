@@ -1,14 +1,10 @@
 package statalign;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import ml.options.OptionData;
 import ml.options.OptionSet;
@@ -86,7 +82,8 @@ public class CommandLine {
                 .addOption("outputdir", Separator.EQUALS)
                 .addOption("spannoid", Separator.EQUALS)
                 .addOption("k", Separator.EQUALS)
-                .addOption("restrictmoves", Separator.EQUALS);
+                .addOption("restrictmoves", Separator.EQUALS)
+                .addOption("initialTopology", Separator.EQUALS);
 
 		OptionSet set;
 		if ((set = opt.getMatchingSet(false, false)) == null) {
@@ -181,6 +178,25 @@ public class CommandLine {
 
                 if (set.isSet("restrictmoves") && "false".equals(set.getOption("restrictmoves").getResultValue(0)))
                     manager.inputData.pars.restrictTopologyChanges = false;
+
+                if (set.isSet("initialTopology")) {
+                    FileReader reader = null;
+                    try {
+                        List<String> components = new LinkedList<String>();
+
+                        reader = new FileReader(set.getOption("initialTopology").getResultValue(0));
+                        Scanner scanner = new Scanner(reader).useDelimiter("\\n");
+                        while (scanner.hasNext())
+                            components.add(scanner.next());
+
+                        manager.inputData.initialTopology = components.toArray(new String[0]);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed!"); // TODO: Fix this!
+                    } finally {
+                        if (reader != null)
+                            reader.close();
+                    }
+                }
             } else {
                 manager.inputData.pars.treeType = MCMCPars.TreeType.STEINER;
             }

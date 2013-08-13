@@ -298,6 +298,10 @@ public class MpdAlignment extends statalign.postprocess.Postprocess {
 
 	}
 
+    public double getScore() {
+        return scorer.calculateScore(viterbialignment);
+    }
+
     @Override
 	public void afterLastSample() {
 		if (postprocessWrite) {

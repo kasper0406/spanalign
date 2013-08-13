@@ -12,6 +12,8 @@ public class InputData {
 	 */
 	public RawSequences seqs = new RawSequences();
 
+    public String[] initialTopology = null;
+
 	/**
 	 * This class stores the parameters (number of burn-in cycles, number of
 	 * steps, number of samplings) of the MCMC

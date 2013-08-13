@@ -81,7 +81,7 @@ public class MCMCPars {
 	 * MCMC parameter automation settings
 	 */
 	public AutomateParamSettings autoParamSettings;
-	
+
 	/**
 	 * This constructor sets the values in the class
 	 * 
